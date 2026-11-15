@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#1c1812">
-<title>HoodZilla</title>
+<title>HoodZilla Store</title>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="HoodZilla">
 <meta property="og:title" content="HoodZilla - أناقتك تبدأ من هنا">
@@ -47,7 +47,9 @@ rel="stylesheet">
 .box .det{padding-top:18px}
 .hzqm{font-size:12px;font-weight:800;color:#f0924a}
 #mqplus.dim,.qty button.dim{opacity:.3}
-.imgretry{background:transparent;border:1px solid rgba(216,180,114,.5);color:var(--gold-2);border-radius:20px;padding:6px 14px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.imgretry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.7);border:1px solid rgba(216,180,114,.45);color:var(--gold-2);border-radius:50%;cursor:pointer;padding:0;z-index:3}
+.imgwrap,.pic{background-image:linear-gradient(100deg,rgba(255,255,255,.02) 20%,rgba(255,255,255,.07) 40%,rgba(255,255,255,.02) 60%);background-size:200% 100%;animation:hzsk 1.4s linear infinite}
+@keyframes hzsk{from{background-position:200% 0}to{background-position:-200% 0}}
 #fpanel #search{padding:0 18px;text-align:right;letter-spacing:0}
 #search::placeholder{opacity:1;letter-spacing:0}
 #cscroll{gap:10px}
@@ -57,7 +59,7 @@ rel="stylesheet">
 <meta name="theme-color" content="#1c1812">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="HoodZilla">
+<meta name="apple-mobile-web-app-title" content="HoodZilla Store">
 <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
@@ -468,9 +470,9 @@ var IMG_CFG = {
   PROXY: true,                 // true = استخدم wsrv.nl كأول مصدر (أسرع وأثبت)، false = جوجل مباشرة
   PROXY_URL: 'https://wsrv.nl/?url=lh3.googleusercontent.com/d/{ID}&w={W}&output=webp&q=82&we',
   MAX_PARALLEL: 6,             // أقصى عدد صور بتتحمل مع بعض
-  TIMEOUT_MS: 9000,            // لو مصدر ما رجّعش الصورة في الوقت ده ننتقل للتالي
-  RETRIES: 4,                  // عدد جولات إعادة المحاولة (بتتباعد تدريجياً) طول ما الصورة على الشاشة
-  RETRY_BASE_MS: 2500
+  TIMEOUT_MS: 11000,           // مهلة أول جولة (بتزيد مع كل جولة للنت البطيء)
+  RETRIES: 6,                  // جولات إعادة المحاولة الصامتة (بتتباعد تدريجياً) طول ما الصورة على الشاشة
+  RETRY_BASE_MS: 1800
 };
 function imgSources(id, w) {
   w = Math.min(w, 900);
@@ -487,7 +489,7 @@ function imgPump() {
 }
 function makeImg(id, w, alt) {
 var img = document.createElement('img');
-img.alt = alt;
+img.alt = '';   // الـ alt بيتحط بعد التحميل بس (عشان أيقونة الصورة المكسورة واسم الموديل ميظهروش)
 img.referrerPolicy = 'no-referrer';
 img.decoding = 'async';
 var srcs = imgSources(id, w), n = 0, started = false, round = 0, timer = null, slot = false, tk = null, dead = false;
@@ -504,28 +506,35 @@ function fail() {
   giveUp();
 }
 function giveUp() {
-  img.style.display = 'none';
+  // مفيش نص: الصورة بتفضل تحاول لوحدها (كل 20 ثانية، وأول ما النت يرجع أو التبويب يتفتح)، وأيقونة دايرة صغيرة بس لو كله فشل
   var par = img.parentNode;
-  if (par && !par.querySelector('.noimg')) {
-    var b = el('div', 'noimg', '');
-    var btn = el('button', 'imgretry', 'اضغط لإعادة المحاولة');
-    btn.type = 'button';
-    btn.addEventListener('click', function (e) { e.stopPropagation(); b.remove(); img.style.display = ''; round = 0; n = 0; enqueue(true); });
-    b.appendChild(btn); par.appendChild(b);
+  if (par && !par.querySelector('.imgretry')) {
+    var btn = el('button', 'imgretry', '');
+    btn.type = 'button'; btn.setAttribute('aria-label', 'retry');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>';
+    btn.addEventListener('click', function (e) { e.stopPropagation(); again(); });
+    par.appendChild(btn);
   }
+  setTimeout(function () { if (!dead && document.body.contains(img) && img.dataset.ok !== '1') again(); }, 20000);
 }
+function again() {
+  var par = img.parentNode, b = par && par.querySelector('.imgretry'); if (b) b.remove();
+  round = 0; n = 0; enqueue(true);
+}
+window.addEventListener('online', function () { if (img.dataset.ok !== '1' && started && document.body.contains(img)) again(); });
+document.addEventListener('visibilitychange', function () { if (!document.hidden && img.dataset.ok !== '1' && started && document.body.contains(img)) again(); });
 function enqueue(front) {
   if (tk) tk.go = null;
   tk = { go: function () {
     slot = true;
     clearTimeout(timer);
-    timer = setTimeout(fail, IMG_CFG.TIMEOUT_MS);
+    timer = setTimeout(fail, IMG_CFG.TIMEOUT_MS + round * 4000);
     img.src = srcs[n];
   } };
   if (front) imgQ.unshift(tk); else imgQ.push(tk);
   imgPump();
 }
-img.onload = function () { free(); };
+img.onload = function () { free(); img.dataset.ok = '1'; img.alt = alt || ''; var par = img.parentNode, b = par && par.querySelector('.imgretry'); if (b) b.remove(); };
 img.onerror = function () { fail(); };
 img.load = function () {
   if (started) return;
@@ -834,6 +843,8 @@ if (ALL[i].code === code) { clearHash(); openModal(ALL[i]); return; }
 }
 
 window.addEventListener('popstate', function () {
+if (window.__skipPop) { window.__skipPop = false; return; }
+var __pd = document.getElementById('hzpd'); if (__pd && __pd.classList.contains('open')) return;
 if (window.__s2 && $('cart').classList.contains('open')) { window.__s2 = false; if (window.__s2back) window.__s2back(); return; }
 if ($('cart').classList.contains('open')) closeCart(true);
 else if ($('modal').classList.contains('open')) closeModal(true);
@@ -1277,7 +1288,7 @@ if (it.color) meta.push(T_COLOR + ': ' + it.color);
 if (it.size) meta.push(T_SIZE + ': ' + it.size);
 meta.push(T_CODE + ': ' + dcode(it.code));
 info.appendChild(el('div', 'cmeta', meta.join(' | ')));
-if (it.cx && window.cxText) info.appendChild(el('div', 'cx', window.cxText(it.cx).replace(/ \|\| /g, ' \u00b7 ')));
+if (it.cx && window.cxText) { var __cx = el('div', 'cx', window.cxText(it.cx).replace(/ \|\| /g, ' \u00b7 ')); if (it.cx.pr && it.cx.pr.th) { var __im = document.createElement('img'); __im.className = 'cxth'; __im.alt = ''; __im.src = it.cx.pr.th; __cx.insertBefore(__im, __cx.firstChild); } info.appendChild(__cx); }
 info.appendChild(el('div', 'cprice', fmt((toNum(it.price) + (it.fee || 0)) * it.qty) + ' ' + CURRENCY));
 row.appendChild(info);
 var side = el('div', 'cside');
@@ -1352,7 +1363,7 @@ $('cart').classList.remove('open');
 if (cartPushed) {
 cartPushed = false;
 var two = window.__s2; window.__s2 = false;
-if (fromPop !== true && wasOpen) { try { history.go(two ? -2 : -1); } catch (e) {} }
+if (fromPop !== true && wasOpen) { if ($('modal').classList.contains('open')) { window.__skipPop = true; setTimeout(function () { window.__skipPop = false; }, 700); } try { history.go(two ? -2 : -1); } catch (e) {} }
 }
 }
 $('cartfab').addEventListener('click', openCart);
@@ -1651,11 +1662,12 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   }
   function proofPaid(total) { return payNeeded() && PF && PF.verdict === 'ok' && PF.amount > 0 ? Math.min(N(PF.amount), total) : 0; }
 
+  function nameValid(n) { var w = String(n || '').trim().split(/\s+/); if (w.length < 2) return false; for (var i = 0; i < w.length; i++) if (!/^[A-Za-z\u0600-\u06FF]{2,}$/.test(w[i])) return false; return true; }
   // رسوم القطع الخاصة (مقاس/طباعة) من الإعدادات
   window.__hzFee = function (cx) {
     var f = 0; if (!cx) return 0;
     if (cx.sz && on('المقاس_الخاص_مفعل', true)) f += N(SET['سعر_المقاس_الخاص']);
-    if (cx.pr && on('الطباعة_الخاصة_مفعلة', true)) f += N(SET['سعر_الطباعة_الخاصة']);
+    if (cx.pr && on('الطباعة_الخاصة_مفعلة', true)) f += window.__hzPrintFee ? window.__hzPrintFee(cx.pr) : N(SET['سعر_الطباعة_الخاصة']);
     return f;
   };
   function calcFor(items, extraUnit) {
@@ -1690,7 +1702,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
 
   function formValid() {
     var z = zone(), p = /^01\d{9}$/;
-    if (!CUST.name || CUST.name.trim().split(/\s+/).length < 2 || !/^\d{2}$/.test(CUST.age || '') || +CUST.age < 10 || !p.test(CUST.phone || '') || (CUST.phone2 && !p.test(CUST.phone2)) || !CUST.gov || !CUST.city || !z || !z.ok || !CUST.address || CUST.address.length < 6) return false;
+    if (!CUST.name || !nameValid(CUST.name) || !/^\d{2}$/.test(CUST.age || '') || +CUST.age < 10 || !p.test(CUST.phone || '') || (CUST.phone2 && !p.test(CUST.phone2)) || !CUST.gov || !CUST.city || !z || !z.ok || !CUST.address || CUST.address.length < 6) return false;
     return cart.length > 0;
   }
   function payValid() { if (!payNeeded() || !proofReq()) return true; return UP.state === 'up' || UP.state === 'done'; }
@@ -1719,7 +1731,10 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
       h += '<select id="hzsvs"><option value="">اختار عنوان محفوظ</option>' + a.map(function (x, i) { return '<option value="' + i + '">' + (x.l || 'عنوان') + ' - ' + x.city + '</option>'; }).join('') + '<option value="new">استخدم عنوان تاني</option></select>';
     }
     var same = a.some(function (x) { return x.gov === CUST.gov && x.city === CUST.city && x.a === CUST.address; });
-    if (window.__hzAuth && window.__hzAuth() && CUST.gov && CUST.city && CUST.address && CUST.address.length > 5 && !same) h += '<div class="hzr"><input id="hzsvl" placeholder="اسم العنوان (البيت / الشغل)"><button type="button" id="hzsvg">احفظ العنوان ده</button></div>';
+    var b2 = $$('hzsvb2'); if (!b2 && $$('hzad')) { b2 = document.createElement('div'); b2.id = 'hzsvb2'; b2.className = 'hzsv'; $$('hzad').parentNode.insertBefore(b2, $$('hzad').nextSibling); }
+    var sv = '';
+    if (window.__hzAuth && window.__hzAuth() && CUST.gov && CUST.city && CUST.address && CUST.address.length > 5 && !same) sv = '<div class="hzr"><input id="hzsvl" placeholder="اسم العنوان (البيت / الشغل)"><button type="button" id="hzsvg">احفظ العنوان ده</button></div>';
+    if (b2) b2.innerHTML = sv;
     b.innerHTML = h;
     var s = $$('hzsvs');
     if (s) s.onchange = function () {
@@ -1758,7 +1773,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     Object.keys(map).forEach(function (id) { $$(id).value = CUST[map[id]] || ''; $$(id).addEventListener('input', function () { var v = this.value.trim(); if (id === 'hza') { v = v.replace(/\D/g, '').slice(0, 2); this.value = v; } if (id === 'hzt' || id === 'hzt2') { v = v.replace(/[^\d]/g, ''); } CUST[map[id]] = v; save(); upd(); abandonSoon(); if (id === 'hzad') addrBox(); }); });
     $$('hzg').addEventListener('change', function () { CUST.gov = this.value; CUST.city = ''; save(); fillCity(); renderCart(); });
     $$('hzc').addEventListener('change', function () { CUST.city = this.value; save(); renderCart(); addrBox(); });
-    fillGov(); addrBox();
+    fillGov(); addrBox(); $$('hzad').addEventListener('change', addrBox);
   }
 
   function cp(t) { try { navigator.clipboard.writeText(t); showToast(T_COPIED); } catch (e) { window.prompt('', t); } }
@@ -1844,7 +1859,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (!$$('hzf')) return;
     var pr = calcPricing(), z = zone(), w = $$('hzw');
     if ($$('hzp1')) { $$('hzp1').className = 'hzp' + (PAY === 'cod' ? ' on' : ''); $$('hzp2').className = 'hzp' + (PAY === 'full' ? ' on' : ''); }
-    w.innerHTML = ''; $$('hzne').textContent = CUST.name && CUST.name.trim().split(/\s+/).length < 2 ? 'اكتب الاسم الأول والأخير' : '';
+    w.innerHTML = ''; $$('hzne').textContent = CUST.name && !nameValid(CUST.name) ? 'اكتب الاسم ثنائي على الأقل (كل كلمة حرفين أو أكتر)' : '';
     if (CUST.gov && CUST.city && z && !z.ok) w.textContent = 'الشحن غير متاح لهذه المدينة';
     else if (CUST.gov && GEO && !(GEO[CUST.gov] || []).some(function (c) { return c.ok; })) w.textContent = 'الشحن غير متاح لهذه المحافظة';
     if (w.textContent) { var a = el('a', '', ' كلمنا على واتساب'); a.href = $$('fab').href; a.target = '_blank'; w.appendChild(a); }
@@ -1979,7 +1994,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     var pr = calcPricing(), snap = cart.map(function (i) { return { name: i.name, color: i.color, size: i.size, qty: i.qty, code: i.code, cx: i.cx }; });
     var payload = {
       type: 'order', oid: OID, hp: ($$('hzhp') || {}).value || '', ft: Date.now() - T0, cf: CF, proofRef: PF && payNeeded() ? PF.ref : '', fb: fbData(),
-      items: cart.map(function (i) { return { code: i.code, color: i.color, size: i.size, qty: i.qty, cx: i.cx || undefined }; }),
+      items: cart.map(function (i) { return { code: i.code, color: i.color, size: i.size, qty: i.qty, cx: i.cx ? JSON.parse(JSON.stringify(i.cx, function (k, v) { return k === 'th' ? undefined : v; })) : undefined }; }),
       customer: { name: CUST.name, age: CUST.age, phone: CUST.phone, phone2: CUST.phone2 || '', gov: CUST.gov, city: CUST.city, address: CUST.address, notes: CUST.notes || '' },
       promo: promoApplied ? promoApplied.code : '', pay: { method: PAY, amount: needAmt(pr.total, pr.dep) }, src: (location.search.match(/utm_source=([^&]+)/) || [])[1] || ''
     };
@@ -2003,7 +2018,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
           return;
         }
         closePop();
-        var e = r && r.error, m = { stock: 'في صنف خلص من المخزون', closed: 'الطلبات متوقفة مؤقتاً، كلمنا على واتساب', rate: 'الموقع مشغول، جرب بعد دقيقة', human: 'محتاجين نتأكد إنك مش روبوت، استنى لحظة وجرب تاني', blocked: 'مقدرناش نكمّل الطلب ده. كلمنا على واتساب', too_many: 'عندك طلبات مفتوحة كتير، كلمنا على واتساب', shipping_unavailable: 'الشحن غير متاح للمدينة دي', invalid: 'راجع بياناتك وجرب تاني', item: 'في صنف في السلة اتغيّر، حدّث الصفحة' }[e] || 'حصل خطأ، جرب تاني. طلبك مش هيتسجل مرتين.';
+        var e = r && r.error, m = { stock: 'في صنف خلص من المخزون', closed: 'الطلبات متوقفة مؤقتاً، كلمنا على واتساب', rate: 'الموقع مشغول لحظات، استنى نص دقيقة وجرب تاني. طلبك مش هيتسجل مرتين.', designs: 'عدد التصاميم في القطعة أكبر من المسموح', human: 'محتاجين نتأكد إنك مش روبوت، استنى لحظة وجرب تاني', blocked: 'مقدرناش نكمّل الطلب ده. كلمنا على واتساب', too_many: 'عندك طلبات مفتوحة كتير، كلمنا على واتساب', shipping_unavailable: 'الشحن غير متاح للمدينة دي', invalid: 'راجع بياناتك وجرب تاني', item: 'في صنف في السلة اتغيّر، حدّث الصفحة' }[e] || 'حصل خطأ، جرب تاني. طلبك مش هيتسجل مرتين.';
         if (e === 'stock' && r.items) fixStock(r.items); else showToast(m);
         if (e === 'human' && window.turnstile && cfId !== null && cfId !== -1) { try { window.turnstile.reset(cfId); } catch (x) {} }
         if (e !== 'rate' && e !== 'human' && e !== 'server' && e) OID = '';
@@ -2132,7 +2147,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (window.__hzCxReset) window.__hzCxReset();
     saveCart(); updateBadge(); bumpCart();
     track('AddToCart', { content_ids: [curProduct.code], content_name: curProduct.name, content_type: 'product', value: toNum(curSize.price) * q, currency: 'EGP' });
-    modalQty = 1; showToast(T_ADDED); updateInfo();
+    modalQty = 1; curSize = null; renderSizes(); showToast(T_ADDED); updateInfo();
   }
 
   updateInfo = function () {
@@ -2149,8 +2164,8 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     add.textContent = can ? T_ADD : (inS && r === 0 ? 'وصلت لأقصى كمية' : (p.inStock ? 'اختر اللون والمقاس' : 'غير متاح حالياً'));
     $$('qrow').className = 'qrow' + (inS ? '' : ' dis');
     var cnt = pieces(p) + (inS ? modalQty : 0), tot = sumP(p) + (inS ? toNum(curSize.price) * modalQty : 0), t = tier(p.offer, cnt), tx = '';
-    if (cnt >= 1 && (inS || cnt >= 2)) { var rf = t && t.ref > 0 ? t.ref : tot / cnt, d = t && rf > 0 ? Math.round(tot * (1 - t.price / (t.n * rf))) : 0; tx = 'الإجمالي (' + (cnt === 1 ? 'قطعة' : cnt + ' قطع') + '): ' + fmt(tot - d) + ' ' + CURRENCY; }
-    $$('hztot').textContent = tx;
+    if (cnt >= 1 && (inS || cnt >= 2)) { var rf = t && t.ref > 0 ? t.ref : tot / cnt, d = t && rf > 0 ? Math.round(tot * (1 - t.price / (t.n * rf))) : 0; tx = 'إجمالي المنتج ده (' + (cnt === 1 ? 'قطعة' : cnt + ' قطع') + '): <b>' + fmt(tot - d) + ' ' + CURRENCY + '</b><small>قبل باقي منتجات السلة</small>'; }
+    $$('hztot').innerHTML = tx;
     Array.prototype.forEach.call(document.querySelectorAll('#moffer .ochip'), function (c) { c.className = 'ochip' + (t && +c.getAttribute('data-n') === t.n ? ' hit' : ''); });
     var cap = N(SS['سقف_الكمية_المرسلة']) || 10;
     $$('hzmsg').textContent = inS && (r === 0 || modalQty >= r) ? (curSize.max != null && curSize.max < cap ? 'آخر كمية متاحة' : 'أقصى كمية للطلب') : '';
@@ -2197,6 +2212,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (a && a < ma) m += '\nالمقاسات دي للكبار.';
     $$('hzbig').textContent = r.s; $$('hzsr').style.whiteSpace = 'pre-line'; $$('hzsr').textContent = m; pick = r.s; bx.style.display = 'flex'; b.style.display = 'block';
   }
+  window.__hzOpenSizes = function () { openSizes(); };
   function openSizes() {
     var ps = psizes(), rows = SZ.slice().sort(function (a, b) { return sizeRank(a.s) - sizeRank(b.s); });
     var h = '<h3><span>جدول المقاسات</span><button class="hzx" type="button">×</button></h3><table class="hzt2"><tr><th>المقاس</th><th>العرض (سم)</th><th>الطول (سم)</th></tr>' + rows.map(function (r) { return '<tr class="' + (ps.indexOf(r.s) < 0 ? 'dim' : '') + '"><td>' + r.s + '</td><td>' + r.w + '</td><td>' + r.l + '</td></tr>'; }).join('') + '</table><p>القياسات بالسنتيمتر والهودي مفرود. الموديلات أوفرسايز: لو بتفضّل لبس أقل اتساعاً اختار مقاس أصغر.</p>';
@@ -2271,104 +2287,146 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
 })();
 (function () {
   /* ===================== المقاس الخاص والطباعة الخاصة (داخل نافذة المنتج) ===================== */
-  var $$ = function (i) { return document.getElementById(i); }, CX = { sz: null, pr: null }, DR = null, openK = '', upBusy = false, upThumb = '';
-  function S() { return window.__hzSET || {}; }
-  function flag(k) { return String(S()[k]) !== 'لا'; }
-  function fee(k) { return parseFloat(S()[k]) || 0; }
-  function nm(v) { var n = parseFloat(String(v).replace(/[^\d.]/g, '')); return isNaN(n) ? 0 : n; }
+  var $$ = function (i) { return document.getElementById(i); }, CX = { sz: null, pr: null }, PRS = null, SZT = [], SPD = { psz: [], pz: [], pt: [] }, SXX = {};
+  function S() { return window.__hzSET || SXX || {}; }
+  function N(v) { var n = parseFloat(String(v).replace(/[^\d.]/g, '')); return isNaN(n) ? 0 : n; }
+  function E(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function typ() { return (curProduct && curProduct.mt) || 'hoodie'; }
+  var _ad = applyData;
+  applyData = function (d, f) { SZT = d.sizes || []; SPD = { psz: d.psz || [], pz: d.pz || [], pt: d.pt || [] }; SXX = d.settings || {}; _ad(d, f); };
+
+  /* ---- السعر ---- */
+  function ptRow(n) { var r = null; SPD.pt.forEach(function (x) { if (x.n === n) r = x; }); return r; }
+  window.__hzPrintFee = function (pr) {
+    var ds = pr && pr.d || []; if (!ds.length) return 0;
+    var row = ptRow(ds.length); if (!row) return N(S()['سعر_الطباعة_الخاصة']);
+    var a = 0; ds.forEach(function (d) { a += N(d.w) * N(d.h); });
+    var k = row.a2 > row.a1 ? Math.min(1, Math.max(0, (a - row.a1) / (row.a2 - row.a1))) : 0;
+    return Math.round((row.min + (row.max - row.min) * k) / 5) * 5;
+  };
   window.__hzCx = function () { var o = {}; if (CX.sz) o.sz = CX.sz; if (CX.pr) o.pr = CX.pr; return o.sz || o.pr ? JSON.parse(JSON.stringify(o)) : null; };
-  window.__hzCxReset = function () { CX = { sz: null, pr: null }; DR = null; openK = ''; upThumb = ''; draw(); };
+  window.__hzCxReset = function () { CX = { sz: null, pr: null }; PRS = null; draw(); };
+  var KEYS = { hoodie: [['صدر', 'chest'], ['طول', 'length'], ['كتف', 'shoulder'], ['كم', 'sleeve']], pants: [['وسط', 'waist'], ['ورك', 'hip'], ['فخذ', 'thigh'], ['طول الرجل', 'inseam']] };
+  KEYS.jacket = KEYS.hoodie;
+  function zname(code) { var n = code; SPD.pz.forEach(function (z) { if (z.code === code) n = z.name; }); return n; }
   window.cxText = function (cx) {
     var t = [];
     if (cx && cx.sz) {
-      var a = []; [['صدر', 'chest'], ['طول', 'length'], ['كتف', 'shoulder'], ['كم', 'sleeve'], ['طولي', 'height'], ['وزني', 'weight']].forEach(function (k) { if (cx.sz[k[1]]) a.push(k[0] + ' ' + cx.sz[k[1]]); });
+      var a = []; if (cx.sz.base) a.push('المقاس ' + cx.sz.base);
+      KEYS.hoodie.concat(KEYS.pants).forEach(function (k) { if (cx.sz[k[1]]) a.push(k[0] + ' ' + cx.sz[k[1]]); });
       if (cx.sz.note) a.push(cx.sz.note); t.push('مقاس خاص: ' + a.join(' | '));
     }
-    if (cx && cx.pr) {
-      var b = []; if (cx.pr.text) b.push('"' + cx.pr.text + '"'); if (cx.pr.where) b.push(cx.pr.where); if (cx.pr.ref) b.push('مع تصميم مرفوع'); if (cx.pr.note) b.push(cx.pr.note); t.push('طباعة خاصة: ' + b.join(' | '));
+    if (cx && cx.pr && cx.pr.d) {
+      t.push('طباعة خاصة: ' + cx.pr.d.length + ' تصميم | ' + cx.pr.d.map(function (d) { return zname(d.z) + ' ' + d.w + '×' + d.h + ' سم'; }).join(' + ') + (cx.pr.note ? ' | ' + cx.pr.note : ''));
     }
     return t.join(' || ');
   };
   var st = document.createElement('style');
-  st.textContent = '#hzsp{display:flex;flex-direction:column;gap:8px}.hzspr{display:flex;gap:8px;flex-wrap:wrap}.hzspb{display:inline-flex;align-items:center;gap:7px;border:1px dashed rgba(216,180,114,.55);background:rgba(216,180,114,.05);color:var(--gold-2);border-radius:30px;padding:7px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:.2s}.hzspb svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.hzspb small{font-size:11px;color:var(--muted);font-weight:600}.hzspb.open{border-style:solid;background:rgba(216,180,114,.14)}.hzspb.on{border-style:solid;background:linear-gradient(135deg,var(--gold-2),var(--gold));color:#1a1408}.hzspb.on small{color:#4a3a18}' +
-    '.hzspp{display:flex;flex-direction:column;gap:8px;border:1px solid rgba(216,180,114,.3);border-radius:14px;padding:12px;background:linear-gradient(180deg,rgba(216,180,114,.07),rgba(216,180,114,.02));animation:hzfd .25s ease}@keyframes hzfd{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}.hzspp .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hzspp label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--muted);font-weight:700}.hzspp input,.hzspp select,.hzspp textarea{width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(216,180,114,.25);background:var(--panel);color:var(--ink);font-family:inherit;font-size:15px}.hzspp textarea{min-height:56px;resize:vertical}.hzspp .nt{font-size:12px;line-height:1.7;color:var(--muted)}.hzspp .ac{display:flex;gap:8px}.hzspp .ac button{flex:1;padding:10px;border-radius:10px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;border:1px solid var(--gold);background:transparent;color:var(--gold-2)}.hzspp .ac button.ok{background:linear-gradient(135deg,var(--gold-2),var(--gold));color:#1a1408}.hzspp .up{display:flex;align-items:center;gap:10px}.hzspp .up img{width:46px;height:46px;border-radius:8px;object-fit:cover}.hzspp .up button{border:1px solid rgba(216,180,114,.5);background:transparent;color:var(--gold-2);border-radius:20px;padding:6px 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}.hzspsum{font-size:12px;line-height:1.7;color:var(--gold);border-right:2px solid var(--gold);padding-right:8px}';
+  st.textContent = '#hzsp{display:flex;flex-direction:column;gap:8px;margin:12px 0}.hzspr{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hzspc{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:right;border:1px solid rgba(216,180,114,.4);background:linear-gradient(135deg,rgba(216,180,114,.1),rgba(216,180,114,.02));color:var(--gold-2);border-radius:14px;padding:10px 12px;font-family:inherit;cursor:pointer}.hzspc:only-child{grid-column:1/-1}.hzspc svg{width:22px;height:22px;fill:none;stroke:var(--gold);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.hzspc b{font-size:14px;color:#fff}.hzspc small{font-size:11.5px;color:var(--muted)}.hzspc.on{border-color:var(--green);background:rgba(84,212,149,.08)}.hzspc.on small{color:var(--green)}' +
+    '.hzspsum{display:flex;align-items:center;gap:8px;font-size:12.5px;line-height:1.7;color:var(--gold-2);border:1px solid rgba(84,212,149,.35);border-radius:12px;padding:8px 10px;background:rgba(84,212,149,.06)}.hzspsum img{width:44px;height:44px;border-radius:8px;object-fit:cover}.hzspsum span{flex:1}.hzspsum button{background:none;border:1px solid var(--gold);color:var(--gold-2);border-radius:20px;padding:4px 11px;font-family:inherit;font-size:12px;cursor:pointer}' +
+    '#hzszp{z-index:82}#hzsz{z-index:84}#hzszp .hzs{max-width:460px}.hzszf{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hzszf label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}.hzszf input,.hzszf select,#hzszp textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(216,180,114,.28);background:var(--panel);color:var(--ink);font-family:inherit;font-size:15px}.hzrec{border:1px dashed var(--gold);border-radius:14px;padding:10px 12px;margin:10px 0;text-align:center;line-height:1.9;font-size:13.5px;display:none}.hzrec .bg{font-size:34px;font-weight:900;color:var(--gold-2);line-height:1.1}.hzrec.warn{border-color:var(--red)}.hzlk{background:none;border:0;color:var(--gold-2);text-decoration:underline;font-family:inherit;font-size:13px;cursor:pointer;padding:4px 0}.cxth{width:38px;height:38px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-left:6px}';
   document.head.appendChild(st);
-
-  var ICON = { sz: '<svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>', pr: '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.3 7.2 17.9l.9-5.4L4.2 8.7l5.4-.8z"/></svg>' };
+  var IC = { sz: '<svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>', pr: '<svg viewBox="0 0 24 24"><path d="M4 7l4-3h8l4 3-2.5 3.2L16 9v11H8V9l-1.5 1.2z"/><path d="M10.5 12.5l1.5 1.5 2.5-3"/></svg>' };
   function host() {
     var h = $$('hzsp'); if (h) return h;
     var anchor = $$('msizes') && $$('msizes').parentNode; if (!anchor) return null;
     h = document.createElement('div'); h.id = 'hzsp'; anchor.parentNode.insertBefore(h, anchor.nextSibling); return h;
   }
+  function fsz() { return N(S()['سعر_المقاس_الخاص']); }
   function draw() {
     var h = host(); if (!h) return;
-    var szOn = String(S()['المقاس_الخاص_مفعل']) === 'نعم'; var prOn = String(S()['الطباعة_الخاصة_مفعلة']) === 'نعم';
-    if ((!szOn && !prOn) || !curProduct || !curProduct.inStock) { h.innerHTML = ''; return; }
-    var fs = fee('سعر_المقاس_الخاص'), fp = fee('سعر_الطباعة_الخاصة');
+    var a = curProduct && window.__hzElig && window.__hzElig(curProduct, 'sz'), b = curProduct && window.__hzElig && window.__hzElig(curProduct, 'pr');
+    if (!a && !b) { h.innerHTML = ''; return; }
+    var fp = ptRow(1);
     var html = '<div class="hzspr">';
-    if (szOn) html += '<button type="button" class="hzspb' + (CX.sz ? ' on' : openK === 'sz' ? ' open' : '') + '" data-k="sz">' + ICON.sz + 'مقاس خاص' + (fs ? ' <small>+' + fs + ' ' + CURRENCY + '</small>' : '') + '</button>';
-    if (prOn) html += '<button type="button" class="hzspb' + (CX.pr ? ' on' : openK === 'pr' ? ' open' : '') + '" data-k="pr">' + ICON.pr + 'طباعة خاصة' + (fp ? ' <small>+' + fp + ' ' + CURRENCY + '</small>' : '') + '</button>';
+    if (a) html += '<button type="button" class="hzspc' + (CX.sz ? ' on' : '') + '" data-k="sz">' + IC.sz + '<b>مقاس خاص</b><small>' + (CX.sz ? 'تم التحديد' : (fsz() ? '+' + fsz() + ' ' + CURRENCY : 'قياساتك بالظبط')) + '</small></button>';
+    if (b) html += '<button type="button" class="hzspc' + (CX.pr ? ' on' : '') + '" data-k="pr">' + IC.pr + '<b>طباعة خاصة</b><small>' + (CX.pr ? 'تم التحديد' : (fp ? 'من ' + fp.min + ' ' + CURRENCY : 'تصميمك على المنتج')) + '</small></button>';
     html += '</div>';
-    if (CX.sz && openK !== 'sz') html += '<div class="hzspsum">' + window.cxText({ sz: CX.sz }) + '</div>';
-    if (CX.pr && openK !== 'pr') html += '<div class="hzspsum">' + window.cxText({ pr: CX.pr }) + '</div>';
-    var dur = S()['مدة_التجهيز_الخاص'];
-    if (openK === 'sz') {
-      var z = CX.sz || {};
-      html += '<div class="hzspp" id="hzpsz"><div class="nt">اختار أقرب مقاس من فوق، وهنظبطه على قياساتك ونتواصل معاك لتأكيد التفاصيل' + (dur ? ' (مدة التجهيز: ' + dur + ')' : '') + '.</div><div class="g2">' +
-        [['chest', 'الصدر (سم)'], ['length', 'الطول (سم)'], ['shoulder', 'الكتف (سم)'], ['sleeve', 'الكم (سم)'], ['height', 'طولك (سم)'], ['weight', 'وزنك (كجم)']].map(function (f) { return '<label>' + f[1] + '<input inputmode="decimal" data-f="' + f[0] + '" value="' + (z[f[0]] || '') + '"></label>'; }).join('') +
-        '</div><label>ملاحظات (اختياري)<textarea data-f="note">' + (z.note || '') + '</textarea></label><div class="ac"><button type="button" class="ok" id="hzsok">تأكيد المقاس</button><button type="button" id="hzsno">' + (CX.sz ? 'إلغاء المقاس الخاص' : 'إغلاق') + '</button></div></div>';
-    }
-    if (openK === 'pr') {
-      var p = CX.pr || DR || {};
-      html += '<div class="hzspp" id="hzppr"><div class="nt">اكتب النص أو ارفع التصميم اللي عايزه، ونتواصل معاك نأكد الشكل والمكان' + (dur ? ' (مدة التجهيز: ' + dur + ')' : '') + '.</div>' +
-        '<label>النص المطلوب طباعته<input data-f="text" maxlength="80" value="' + (p.text || '').replace(/"/g, '&quot;') + '"></label>' +
-        '<label>مكان الطباعة<select data-f="where">' + ['صدر', 'ظهر', 'الكم', 'صدر وظهر', 'مكان تاني (اكتبه في الملاحظات)'].map(function (w) { return '<option' + (p.where === w ? ' selected' : '') + '>' + w + '</option>'; }).join('') + '</select></label>' +
-        '<div class="up"><input type="file" id="hzpf" accept="image/*" hidden>' + (upThumb ? '<img alt="" src="' + upThumb + '">' : '') + '<button type="button" id="hzpup">' + (upBusy ? 'بنرفع التصميم، لحظة...' : (p.ref || upThumb ? 'استبدال التصميم' : 'ارفع صورة التصميم (اختياري)')) + '</button>' + (p.ref ? '<span class="nt">تم رفع التصميم ✓</span>' : '') + '</div>' +
-        '<label>ملاحظات (اختياري)<textarea data-f="note">' + (p.note || '') + '</textarea></label><div class="ac"><button type="button" class="ok" id="hzpok">تأكيد الطباعة</button><button type="button" id="hzpno">' + (CX.pr ? 'إلغاء الطباعة الخاصة' : 'إغلاق') + '</button></div></div>';
-    }
+    if (CX.sz) html += '<div class="hzspsum"><span>' + E(window.cxText({ sz: CX.sz })) + '</span><button type="button" data-e="sz">تعديل</button><button type="button" data-x="sz">إلغاء</button></div>';
+    if (CX.pr) html += '<div class="hzspsum">' + (CX.pr.th ? '<img alt="" src="' + CX.pr.th + '">' : '') + '<span>' + E(window.cxText({ pr: CX.pr })) + '<br><b>+' + window.__hzPrintFee(CX.pr) + ' ' + CURRENCY + ' للقطعة</b></span><button type="button" data-e="pr">تعديل</button><button type="button" data-x="pr">إلغاء</button></div>';
     h.innerHTML = html;
-    Array.prototype.forEach.call(h.querySelectorAll('.hzspb'), function (b) { b.onclick = function () { var k = b.getAttribute('data-k'); openK = openK === k ? '' : k; draw(); }; });
-    var val = function (root, f) { var e = root.querySelector('[data-f="' + f + '"]'); return e ? String(e.value).trim() : ''; };
-    if ($$('hzsok')) {
-      $$('hzsok').onclick = function () {
-        var r = $$('hzpsz'), o = {}, any = false;
-        ['chest', 'length', 'shoulder', 'sleeve', 'height', 'weight'].forEach(function (f) { var n = nm(val(r, f)); if (n > 0 && n < 400) { o[f] = n; any = true; } });
-        if (!any) { showToast('اكتب مقاس واحد على الأقل'); return; }
-        var nt = val(r, 'note'); if (nt) o.note = nt.slice(0, 120); CX.sz = o; openK = ''; draw();
-      };
-      $$('hzsno').onclick = function () { if (CX.sz) CX.sz = null; openK = ''; draw(); };
-    }
-    if ($$('hzpok')) {
-      var r2 = $$('hzppr');
-      $$('hzpup').onclick = function () { if (!upBusy) $$('hzpf').click(); };
-      $$('hzpf').onchange = function () {
-        var f = this.files && this.files[0]; this.value = ''; if (!f || !/^image\//.test(f.type)) return;
-        var im = new Image(), u = URL.createObjectURL(f); upBusy = true; keep(r2); draw();
-        im.onload = function () {
-          var s = Math.min(1, 1200 / Math.max(im.width, im.height)), cv = document.createElement('canvas'); cv.width = Math.round(im.width * s); cv.height = Math.round(im.height * s); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
-          var t = document.createElement('canvas'), tr = 92 / Math.max(cv.width, cv.height); t.width = Math.round(cv.width * tr); t.height = Math.round(cv.height * tr); t.getContext('2d').drawImage(cv, 0, 0, t.width, t.height); URL.revokeObjectURL(u);
-          upThumb = t.toDataURL('image/jpeg', .7);
-          postApi({ type: 'upload', img: cv.toDataURL('image/jpeg', .8).split(',')[1] }, function (res) {
-            upBusy = false; DR = DR || {}; if (res && res.ok) { DR.ref = res.ref; } else { showToast('معرفناش نرفع الصورة، جرب تاني'); upThumb = ''; delete DR.ref; }
-            draw();
-          }, 60000);
-        };
-        im.onerror = function () { upBusy = false; draw(); }; im.src = u;
-      };
-      $$('hzpok').onclick = function () {
-        var r = $$('hzppr'), o = { text: val(r, 'text').slice(0, 80), where: val(r, 'where'), note: val(r, 'note').slice(0, 120) }, ref = (DR && DR.ref) || (CX.pr && CX.pr.ref) || '';
-        if (ref) o.ref = ref;
-        if (!o.text && !o.ref) { showToast('اكتب النص أو ارفع التصميم'); return; }
-        CX.pr = o; DR = null; openK = ''; draw();
-      };
-      $$('hzpno').onclick = function () { CX.pr = null; DR = null; upThumb = ''; openK = ''; draw(); };
-    }
+    Array.prototype.forEach.call(h.querySelectorAll('[data-k],[data-e]'), function (x) { x.onclick = function () { openSpecial(x.getAttribute('data-k') || x.getAttribute('data-e')); }; });
+    Array.prototype.forEach.call(h.querySelectorAll('[data-x]'), function (x) { x.onclick = function () { var k = x.getAttribute('data-x'); CX[k] = null; if (k === 'pr') PRS = null; draw(); updateInfo(); }; });
   }
-  function keep(root) { if (!root) return; DR = Object.assign({}, DR || {}, { text: (root.querySelector('[data-f="text"]') || {}).value || '', where: (root.querySelector('[data-f="where"]') || {}).value || '', note: (root.querySelector('[data-f="note"]') || {}).value || '' }); }
+  function openSpecial(k) {
+    if (!curProduct) return;
+    if (!curColor) { showToast('اختار اللون الأول'); var cb = $$('colorBlock'); if (cb && cb.scrollIntoView) cb.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (k === 'sz') sizePanel(); else printPanel();
+  }
+  window.__hzOpenSpecial = openSpecial;
   var _om = openModal;
-  openModal = function (p) { CX = { sz: null, pr: null }; DR = null; openK = ''; upThumb = ''; upBusy = false; _om(p); draw(); };
+  openModal = function (p) { CX = { sz: null, pr: null }; PRS = null; _om(p); draw(); };
   var _ui = updateInfo;
-  updateInfo = function () { _ui(); var h = $$('hzsp'); if (h && curProduct && !h.firstChild) draw(); };
+  updateInfo = function () { _ui.apply(this, arguments); draw(); };
+
+  /* ---- المقاس الخاص ---- */
+  function ovl(id) { var o = $$(id); if (!o) { o = document.createElement('div'); o.id = id; o.className = 'hzo'; o.innerHTML = '<div class="hzs"></div>'; document.body.appendChild(o); o.addEventListener('click', function (e) { if (e.target === o) o.classList.remove('open'); }); } return o; }
+  function tableRows() {
+    var pants = typ() === 'pants';
+    var rows = pants ? SPD.psz.map(function (r) { return { s: r.s, a: r.w, b: r.h, c: r.t, d: r.i, mw: r.mw, mh: r.mh }; }) : SZT.map(function (r) { return { s: r.s, a: r.w, b: r.l, mw: r.mw, mh: r.mh }; });
+    return rows.sort(function (x, y) { return sizeRank(x.s) - sizeRank(y.s); });
+  }
+  function prodSizes() { var m = {}; curProduct.colors.forEach(function (c) { c.sizes.forEach(function (s) { m[s.size] = 1; }); }); return m; }
+  function sizePanel() {
+    var pants = typ() === 'pants', rows = tableRows(), ks = KEYS[typ()] || KEYS.hoodie, cur = CX.sz || {}, o = ovl('hzszp'), box = o.querySelector('.hzs');
+    box.innerHTML = '<h3><span>مقاس خاص</span><button class="hzx" type="button">×</button></h3><div class="hzm" style="margin-bottom:8px">اعرف مقاسك من جدول المقاسات، أو اكتب سنك ووزنك وطولك وهنقترحلك المقاس، وبعدها عدّل القياسات زي ما تحب.</div>' +
+      '<button class="hzlk" type="button" id="hzszt">افتح جدول المقاسات</button>' +
+      '<div class="hzszf"><label>السن<input id="hzsza" inputmode="numeric" value="' + E(cur.age || '') + '"></label><label>الوزن (كجم)<input id="hzszw" inputmode="numeric" value="' + E(cur.weight || '') + '"></label><label style="grid-column:1/-1">الطول (سم)<input id="hzszh" inputmode="numeric" value="' + E(cur.height || '') + '"></label></div>' +
+      '<div class="hzrec" id="hzszr"></div>' +
+      '<div class="hzszf"><label style="grid-column:1/-1">المقاس الأساسي<select id="hzszb"><option value="">اختار</option>' + rows.map(function (r) { return '<option' + (cur.base === r.s ? ' selected' : '') + '>' + E(r.s) + '</option>'; }).join('') + '</select></label>' +
+      ks.map(function (k) { return '<label>' + k[0] + ' (سم)<input data-f="' + k[1] + '" inputmode="decimal" value="' + E(cur[k[1]] || '') + '"></label>'; }).join('') + '</div>' +
+      '<textarea id="hzszn" rows="2" placeholder="ملاحظات على المقاس (اختياري)" style="margin-top:8px">' + E(cur.note || '') + '</textarea>' +
+      '<div class="hzb" id="hzszm"></div><div class="hzm">سعر المقاس الخاص: ' + (fsz() ? '+' + fsz() + ' ' + CURRENCY + ' للقطعة' : 'من غير رسوم إضافية') + '</div><button class="btn add" type="button" id="hzszs" style="margin-top:8px">تأكيد المقاس الخاص</button>';
+    o.classList.add('open'); box.querySelector('.hzx').onclick = function () { o.classList.remove('open'); };
+    $$('hzszt').onclick = function () { if (window.__hzOpenSizes) window.__hzOpenSizes(); };
+    function idxOf(k, v) { for (var i = 0; i < rows.length; i++) if (v <= N(rows[i][k])) return i; return rows.length; }
+    function sug() {
+      var w = N($$('hzszw').value), h = N($$('hzszh').value), r = $$('hzszr'); r.style.display = 'none'; r.className = 'hzrec';
+      var fl = rows.filter(function (x) { return N(x.mw) > 0 && N(x.mh) > 0; });
+      if (!w || !h || !fl.length) return;
+      var mg = N(S()['هامش_المقاس']) || 5, last = fl[fl.length - 1], i = Math.max(idxOf2(fl, 'mw', w), idxOf2(fl, 'mh', h)), beyond = w > N(last.mw) + mg || h > N(last.mh) + mg, rec = fl[Math.min(i, fl.length - 1)], inP = !!prodSizes()[rec.s];
+      var m;
+      if (beyond) { m = 'قياساتك أكبر من آخر مقاس في الجدول (' + last.s + ')<br><b>اطلب مقاس خاص بقياساتك</b>'; r.className = 'hzrec warn'; }
+      else if (!inP) m = '<div class="bg">' + E(rec.s) + '</div>المقاس المناسب ليك مش متاح في المنتج ده<br><b>اطلبه كمقاس خاص</b>';
+      else m = '<div class="bg">' + E(rec.s) + '</div>المقاس ده متاح عادي في المنتج. كمّل لو عايز قياسات مخصوصة.';
+      r.innerHTML = m; r.style.display = 'block';
+      if (!beyond) { $$('hzszb').value = rec.s; fill(rec); }
+    }
+    function idxOf2(fl, k, v) { for (var i = 0; i < fl.length; i++) if (v <= N(fl[i][k])) return i; return fl.length - 1; }
+    function fill(rec) {
+      var map = pants ? { waist: rec.a, hip: rec.b, thigh: rec.c, inseam: rec.d } : { chest: rec.a, length: rec.b };
+      Object.keys(map).forEach(function (k) { var e = box.querySelector('[data-f=' + k + ']'); if (e && !e.value && map[k]) e.value = map[k]; });
+    }
+    ['hzsza', 'hzszw', 'hzszh'].forEach(function (i) { $$(i).addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); sug(); }); });
+    $$('hzszb').onchange = function () { var r = rows.filter(function (x) { return x.s === $$('hzszb').value; })[0]; if (r) fill(r); };
+    sug();
+    $$('hzszs').onclick = function () {
+      var z = { base: $$('hzszb').value, age: N($$('hzsza').value) || undefined, weight: N($$('hzszw').value) || undefined, height: N($$('hzszh').value) || undefined, note: $$('hzszn').value.trim().slice(0, 120) }, any = !!z.base;
+      Array.prototype.forEach.call(box.querySelectorAll('[data-f]'), function (e) { var v = N(e.value); if (v > 0) { z[e.getAttribute('data-f')] = v; any = true; } });
+      if (!any) { $$('hzszm').textContent = 'اختار المقاس الأساسي أو اكتب قياس واحد على الأقل'; return; }
+      CX.sz = z; baseSize(z.base); o.classList.remove('open'); draw(); updateInfo(); showToast('تم تحديد المقاس الخاص');
+    };
+  }
+  // المخزون بيتخصم من أقرب مقاس متاح في المنتج لو العميل ماحددش مقاس عادي
+  function baseSize(base) {
+    if (curSize && curSize.inStock) return;
+    var best = null, r0 = sizeRank(base || 'M');
+    curColor.sizes.forEach(function (s) { if (!s.inStock) return; var d = Math.abs(sizeRank(s.size) - r0); if (!best || d < best.d) best = { d: d, s: s }; });
+    if (best) { curSize = best.s; renderSizes(); }
+  }
+
+  /* ---- الطباعة الخاصة (المصمّم 3D في print3d.js) ---- */
+  function printPanel() {
+    if (!window.__hzDesigner) { showToast('جاري تحميل المصمّم، جرب بعد لحظات'); return; }
+    var zs = SPD.pz.filter(function (z) { return !z.type || z.type === typ(); });
+    if (!zs.length) { showToast('الطباعة غير متاحة للمنتج ده حالياً'); return; }
+    window.__hzDesigner.open({
+      type: typ(), zones: zs, maxN: N(S()['أقصى_تصاميم_للقطعة']) || 4, maxMB: N(S()['أقصى_حجم_ملف_ميجا']) || 8,
+      refCm: N(S()[typ() === 'pants' ? 'طول_مرجع_بنطلون_سم' : typ() === 'jacket' ? 'طول_مرجع_جاكيت_سم' : 'طول_مرجع_هودي_سم']) || 70,
+      color: curColor, product: curProduct, state: PRS, existing: CX.pr, fee: window.__hzPrintFee, ptable: SPD.pt,
+      onSave: function (res) { CX.pr = res.cx; CX.pr.th = res.th; PRS = res.state; baseSize(''); draw(); updateInfo(); showToast('تم حفظ الطباعة الخاصة'); }
+    });
+  }
 })();
 
 (function () {
@@ -2404,7 +2462,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     '.hzit{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(216,180,114,.14)}.hzit:first-child{border-top:0}.hzit .th{position:relative;width:52px;height:68px;border-radius:8px;overflow:hidden;background:#2a241b;flex:none}.hzit .th img{width:100%;height:100%;object-fit:cover}.hzit .in{flex:1;min-width:0}.hzit .in b{display:block;font-size:13.5px}.hzit .in small{display:block;color:var(--muted);font-size:12px}.hzit .in .cx{font-size:11.5px;color:var(--gold)}.hzit .pr{font-weight:900;color:var(--gold-2);font-size:14px;white-space:nowrap}' +
     '.hzsec{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:rgba(255,255,255,.02)}.hzsec h5{color:var(--gold-2);font-size:13px;margin-bottom:6px}.hztb2{width:100%;font-size:13px;border-collapse:collapse}.hztb2 td{padding:4px 0}.hztb2 td:last-child{text-align:left;font-weight:700}.hztb2 tr.t td{border-top:1px solid var(--line);padding-top:8px;font-size:15px;color:var(--gold-2);font-weight:900}.hztb2 .d td:last-child{color:var(--green)}' +
     '.hzchip{display:inline-block;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:800;background:rgba(216,180,114,.15);color:var(--gold-2)}.hzrt{border:1px solid rgba(216,180,114,.25);border-radius:12px;padding:10px;margin:8px 0}.hzrt label{display:flex;gap:8px;align-items:center;font-size:13px}.hzrt input[type=checkbox]{width:auto!important}.hzrt .sub{margin-top:8px;display:flex;flex-direction:column;gap:6px}.hzseg{display:flex;gap:8px}.hzseg button{flex:1;padding:8px;border-radius:20px;border:1px solid var(--gold);background:transparent;color:var(--gold-2);font-family:inherit;font-weight:700;cursor:pointer}.hzseg button.on{background:linear-gradient(135deg,var(--gold-2),var(--gold));color:#1a1408}.hzaddr{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid rgba(216,180,114,.25);border-radius:10px;padding:8px 10px;font-size:13px}.hzaddr button{border:0;background:none;color:#ffb3a6;cursor:pointer;font-size:18px}' +
-    '.hzfg{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}.hzfg .hzib{width:32px;height:32px;flex:none}#hzhb .hzib{backdrop-filter:blur(4px)}';
+    '.hztab button{min-height:44px;line-height:1.5;padding:10px 6px;font-size:15px;white-space:nowrap}.hztab{margin-top:4px}.hzcomp{text-align:center;padding:22px 14px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(216,180,114,.1),rgba(216,180,114,.02))}.hzcomp .ic{width:62px;height:62px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);color:var(--gold-2);background:rgba(216,180,114,.1)}.hzcomp h4{font-size:18px;color:var(--gold-2);margin-bottom:6px}.hzcomp p{font-size:13.5px;line-height:1.9;color:var(--muted);margin-bottom:16px}.hzcomp .bt{display:flex;flex-direction:column;gap:8px}.hzcomp .btn{width:100%;margin:0}.hzlater{background:none;border:0;color:var(--muted);font-family:inherit;font-size:13.5px;padding:8px;cursor:pointer}.hzokb{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:200;background:#241f17;border:1px solid rgba(84,212,149,.6);border-radius:16px;padding:18px 28px;display:flex;flex-direction:column;align-items:center;gap:8px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.6);transition:opacity .4s}.hzokb.out{opacity:0}.hzfg{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}.hzfg .hzib{width:32px;height:32px;flex:none}#hzhb .hzib{backdrop-filter:blur(4px)}';
   document.head.appendChild(css);
 
   var ov = document.createElement('div'); ov.id = 'hztr'; ov.className = 'hzo'; ov.innerHTML = '<div class="hzs"></div>'; document.body.appendChild(ov);
@@ -2430,9 +2488,23 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     $$('hztx').onclick = closeT;
     if ($$('hzbk') && o.back) $$('hzbk').onclick = o.back;
     if ($$('hzrf') && o.refresh) $$('hzrf').onclick = o.refresh;
-    if ($$('hzlo')) $$('hzlo').onclick = logout;
+    if ($$('hzlo')) $$('hzlo').onclick = function () { cfm('متأكد إنك عايز تسجّل خروج من حسابك؟', 'تسجيل خروج', logout); };
   }
-  function setSess(s) { SESS = s || ''; lsSet('hz_sess', SESS || null); if (!SESS) { PROFILE = null; ORDERS = []; document.dispatchEvent(new CustomEvent('hzprof', { detail: null })); lsSet('hz_prof', null); dot(false); } }
+  function cfm(msg, ok, cb) {
+    var d = document.createElement('div'); d.className = 'hzo open'; d.style.zIndex = 140;
+    d.innerHTML = '<div class="hzs" style="max-width:330px;text-align:center;padding:22px 18px"><div style="line-height:1.9;margin-bottom:14px;font-size:15px">' + msg + '</div><div class="hzacts" style="justify-content:center"><button class="pri" type="button" data-y>' + ok + '</button><button type="button" data-n>إلغاء</button></div></div>';
+    document.body.appendChild(d);
+    d.addEventListener('click', function (e) { if (e.target === d || (e.target.hasAttribute && e.target.hasAttribute('data-n'))) d.remove(); else if (e.target.hasAttribute && e.target.hasAttribute('data-y')) { d.remove(); cb(); } });
+  }
+  function okBox(msg) {
+    var d = document.createElement('div'); d.className = 'hzokb';
+    d.innerHTML = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#54d495" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></svg><b>' + msg + '</b>';
+    document.body.appendChild(d); setTimeout(function () { d.classList.add('out'); setTimeout(function () { d.remove(); }, 400); }, 1800);
+  }
+  function nameOk(n) { var w = String(n || '').trim().split(/\s+/); if (w.length < 2) return false; for (var i = 0; i < w.length; i++) if (!/^[A-Za-z؀-ۿ]{2,}$/.test(w[i])) return false; return true; }
+  var NAME_MSG = 'اكتب الاسم ثنائي على الأقل (كل كلمة حرفين أو أكتر)';
+  window.__hzConfirm = cfm; window.__hzOk = okBox; window.__hzNameOk = nameOk; window.__hzNameMsg = NAME_MSG;
+  function setSess(s) { SESS = s || ''; lsSet('hz_sess', SESS || null); if (!SESS) { PROFILE = null; ORDERS = []; OT = 0; lsSet('hz_ords', null); document.dispatchEvent(new CustomEvent('hzprof', { detail: null })); lsSet('hz_prof', null); dot(false); } }
   function logout() { setSess(''); lsSet('hz_seen', null); auth('in'); }
   var ERR = { bad_login: 'الرقم أو الباسورد غلط', locked: 'محاولات كتير غلط. جرب بعد شوية', exists: 'الرقم ده مسجّل قبل كده. ادخل بالباسورد', need_invoice: 'عندك طلبات قبل كده. اكتب رقم فاتورة من طلباتك عشان نتأكد إنك صاحب الرقم', bad_invoice: 'رقم الفاتورة مش بتاع الرقم ده', invalid: 'راجع البيانات (الباسورد 6 حروف على الأقل)', not_found: 'مش لاقيين الطلب ده', cannot: 'مينفعش دلوقتي، كلمنا على واتساب', closed: 'مدة الاسترجاع خلصت', zone_changed: 'العنوان الجديد سعر شحنه مختلف. كلمنا على واتساب', shipping_unavailable: 'الشحن غير متاح للمدينة دي' };
   function dt(t) { try { return new Date(t).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return ''; } }
@@ -2449,7 +2521,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
       $$('hzfw').onclick = function () { $$('hzfb').style.display = 'flex'; $$('hzfn').focus(); };
       $$('hzfs').onclick = function () {
         var n = $$('hzfn').value.trim(), ph = $$('hztp').value.replace(/\D/g, '');
-        if (n.length < 2) { showToast('اكتب اسمك'); return; }
+        if (!nameOk(n)) { showToast(NAME_MSG); return; }
         if (!/^01\d{9}$/.test(ph)) { showToast('اكتب رقم موبايلك فوق الأول'); return; }
         window.open('https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(HZT.FORGOT_MSG(n, ph)), '_blank');
       };
@@ -2458,6 +2530,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
       var ph = $$('hztp').value.replace(/\D/g, ''), pw = $$('hztw').value, m = $$('hztm');
       if (!/^01\d{9}$/.test(ph)) { m.textContent = 'اكتب رقم موبايل صحيح'; return; }
       if (pw.length < 6) { m.textContent = 'الباسورد 6 حروف على الأقل'; return; }
+      if (reg && $$('hztn').value.trim() && !nameOk($$('hztn').value)) { m.textContent = NAME_MSG; return; }
       m.textContent = 'استنى لحظة...'; var b = this; b.disabled = true;
       var inv = reg && $$('hzti').value ? 'HZ-' + $$('hzti').value : '';
       postApi({ type: reg ? 'track_register' : 'track_login', phone: ph, pass: pw, inv: inv, name: reg ? $$('hztn').value : '' }, function (r) {
@@ -2480,7 +2553,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     }, 30000);
   }
   function complete() {
-    box.innerHTML = head('أهلاً بيك') + '<div class="hzsec" style="text-align:center;line-height:1.9">كمّل بياناتك لو حابب عشان تطلب على طول<div class="hzacts" style="justify-content:center"><button class="pri" type="button" id="hzcy">كمّل بياناتي</button><button type="button" id="hzcn">لاحقاً</button></div></div>'; bind();
+    box.innerHTML = head('أهلاً بيك') + '<div class="hzcomp"><div class="ic"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div><h4>كمّل بياناتك</h4><p>الاسم والسن وعنوان محفوظ، وبعدها تطلب بضغطة واحدة من غير ما تكتب كل مرة.</p><div class="bt"><button class="btn add" type="button" id="hzcy">كمّل بياناتي</button><button class="hzlater" type="button" id="hzcn">لاحقاً</button></div></div>'; bind();
     $$('hzcy').onclick = profileView; $$('hzcn').onclick = function () { lsSet('hz_skipprof', '1'); ordersView(); };
   }
 
@@ -2507,9 +2580,11 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
         if (!g || !c || a.length < 6) { $$('hzpm').textContent = 'اختار المحافظة والمدينة واكتب العنوان بالتفصيل'; return; }
         if (A.length >= 6) { $$('hzpm').textContent = 'أقصى عدد عناوين 6'; return; }
         keep(); A.push({ l: $$('hzal').value.trim() || 'عنوان', gov: g, city: c, a: a }); draw();
+        postApi({ type: 'track_profile', sess: SESS, save: 1, profile: { name: P.name, age: P.age, ph2: P.ph2, addrs: A } }, function (r) { if (r && r.ok) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); okBox('تم إضافة العنوان'); } else { var pm = $$('hzpm'); if (pm) pm.textContent = 'العنوان اتضاف هنا بس، اضغط حفظ بياناتي'; } }, 30000);
       };
       $$('hzps').onclick = function () {
         keep(); var m = $$('hzpm'), b = this;
+        if (!nameOk(P.name)) { m.textContent = NAME_MSG; return; }
         if (P.ph2 && !/^01\d{9}$/.test(P.ph2)) { m.textContent = 'الرقم التاني غير صحيح'; return; }
         m.textContent = 'استنى لحظة...'; b.disabled = true;
         postApi({ type: 'track_profile', sess: SESS, save: 1, profile: { name: P.name, age: P.age, ph2: P.ph2, addrs: A } }, function (r) {
@@ -2526,7 +2601,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   window.__hzSaveAddr = function (addr, cb) {
     var P = PROFILE || { name: '', age: '', ph2: '', addrs: [] }, A = (P.addrs || []).slice(0, 5); A.push(addr);
     postApi({ type: 'track_profile', sess: SESS, save: 1, profile: { name: P.name, age: P.age, ph2: P.ph2, addrs: A } }, function (r) {
-      if (r && r.ok) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); cb(true); } else cb(false);
+      if (r && r.ok) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); okBox('تم إضافة العنوان'); cb(true); } else cb(false);
     }, 30000);
   };
 
@@ -2537,22 +2612,32 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (!(o.step > 0)) return '<span class="hzchip">' + E(o.label) + '</span>';
     return '<div class="hzbar">' + ST.map(function (s, i) { return '<i class="' + (i < o.step ? 'on' : '') + '"></i>'; }).join('') + '</div><div class="hzbl">' + ST.map(function (s) { return '<span>' + s + '</span>'; }).join('') + '</div>';
   }
-  function ordersView(keepScroll) {
+  var VIP = null, OT = 0;
+  try { var c0 = JSON.parse(lsGet('hz_ords') || 'null'); if (c0 && c0.p === PHONE && c0.p) { ORDERS = c0.o || []; VIP = c0.v || null; OT = c0.t || 0; META = c0.m || META; } } catch (e) {}
+  function paintOrders(sc) {
+    box.innerHTML = head('طلباتك', { refresh: 1, out: 1 }) + (VIP ? '<div class="hzvip">كود خصم خاص بيك: <span dir="ltr">' + E(VIP.code) + '</span> (' + VIP.amount + ' ج.م)</div>' : '') +
+      (ORDERS.length ? ORDERS.map(function (o) { return '<div class="hzo2" data-inv="' + E(o.inv) + '"><h4><span dir="ltr">' + E(o.inv) + '</span><span>' + E(o.label) + '</span></h4><div class="row"><span>' + dt(o.time) + '</span><span>' + o.items.reduce(function (a, i) { return a + i.q; }, 0) + ' قطع · ' + o.total + ' ج.م</span></div>' + bar(o) + '</div>'; }).join('') : '<div class="hzn">مفيش طلبات لسه.</div>') +
+      '<div class="hzacts"><button type="button" id="hzmy">حسابي وعناويني</button></div>';
+    bind({ refresh: function () { ordersView(true, true); } });
+    box.scrollTop = sc || 0;
+    $$('hzmy').onclick = profileView;
+    Array.prototype.forEach.call(box.querySelectorAll('.hzo2'), function (c) { c.onclick = function () { var o = ORDERS.filter(function (x) { return x.inv === c.getAttribute('data-inv'); })[0]; if (o) detail(o, false); }; });
+  }
+  function ordersView(keepScroll, force) {
     if (!SESS) { auth('in'); return; }
-    var sc = keepScroll ? box.scrollTop : 0;
-    box.innerHTML = head('طلباتك', { refresh: 1, out: 1 }) + '<div class="hzn">استنى لحظة...</div>'; bind({ refresh: function () { ordersView(true); } });
+    var sc = keepScroll ? box.scrollTop : 0, have = ORDERS.length || OT, fresh = have && !force && Date.now() - OT < 180000;
+    if (have) paintOrders(sc); else { box.innerHTML = head('طلباتك', { refresh: 1, out: 1 }) + '<div class="hzn">استنى لحظة</div>'; bind({ refresh: function () { ordersView(true, true); } }); }
+    if (fresh) return;
     postApi({ type: 'track_orders', sess: SESS }, function (r) {
-      if (!r) { box.innerHTML = head('طلباتك', { refresh: 1, out: 1 }) + '<div class="hzb">مشكلة في النت، جرب تاني</div>'; bind({ refresh: function () { ordersView(true); } }); return; }
-      if (!r.ok) { setSess(''); auth('in', 'سجّل دخول تاني'); return; }
-      ORDERS = r.orders; META = { days: r.returnDays, share: r.share }; if (r.profile) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); }
+      if (!r) { if (!have) { box.innerHTML = head('طلباتك', { refresh: 1, out: 1 }) + '<div class="hzb">مشكلة في النت، جرب تاني</div>'; bind({ refresh: function () { ordersView(true, true); } }); } return; }
+      if (!r.ok) { setSess(''); ORDERS = []; OT = 0; lsSet('hz_ords', null); auth('in', 'سجّل دخول تاني'); return; }
+      var old = JSON.stringify(ORDERS) + JSON.stringify(VIP);
+      ORDERS = r.orders; VIP = r.vip || null; OT = Date.now(); META = { days: r.returnDays, share: r.share };
+      lsSet('hz_ords', JSON.stringify({ p: PHONE, o: ORDERS, v: VIP, t: OT, m: META }));
+      if (r.profile) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); }
       markSeen(ORDERS);
-      box.innerHTML = head('طلباتك', { refresh: 1, out: 1 }) + (r.vip ? '<div class="hzvip">كود خصم خاص بيك: <span dir="ltr">' + E(r.vip.code) + '</span> (' + r.vip.amount + ' ج.م)</div>' : '') +
-        (ORDERS.length ? ORDERS.map(function (o) { return '<div class="hzo2" data-inv="' + E(o.inv) + '"><h4><span dir="ltr">' + E(o.inv) + '</span><span>' + E(o.label) + '</span></h4><div class="row"><span>' + dt(o.time) + '</span><span>' + o.items.reduce(function (a, i) { return a + i.q; }, 0) + ' قطع · ' + o.total + ' ج.م</span></div>' + bar(o) + '</div>'; }).join('') : '<div class="hzn">مفيش طلبات لسه.</div>') +
-        '<div class="hzacts"><button type="button" id="hzmy">حسابي وعناويني</button></div>';
-      bind({ refresh: function () { ordersView(true); } });
-      box.scrollTop = sc;
-      $$('hzmy').onclick = profileView;
-      Array.prototype.forEach.call(box.querySelectorAll('.hzo2'), function (c) { c.onclick = function () { var o = ORDERS.filter(function (x) { return x.inv === c.getAttribute('data-inv'); })[0]; if (o) detail(o, false); }; });
+      var onList = !!box.querySelector('#hzmy') && ov.classList.contains('open');
+      if (!have || (onList && old !== JSON.stringify(ORDERS) + JSON.stringify(VIP))) paintOrders(box.scrollTop);
     }, 30000);
   }
 
@@ -2715,8 +2800,8 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   };
   function openAccount() { ov.classList.add('open'); if (SESS) profileView(); else auth(lsGet('hz_reg') ? 'in' : 'reg'); }
   var hero = document.querySelector('.hero'), hb = document.createElement('div'); hb.id = 'hzhb';
-  hb.innerHTML = ib('hztb', SVG.box, 'تتبع طلبي') + ib('hzab', SVG.user, 'حسابي');
-  hero.appendChild(hb); $$('hztb').insertAdjacentHTML('beforeend', '<i class="hzdot" id="hztdot"></i>');
+  hb.innerHTML = ib('hzab', SVG.user, 'حسابي') + '<span id="hztbw" style="display:none">' + ib('hztb', SVG.box, 'تتبع طلبي') + '</span>';
+  hero.appendChild(hb);
   Array.prototype.forEach.call(hb.querySelectorAll('.hzib'), tipify);
   $$('hztb').onclick = function () { window.__hzTrack(); }; $$('hzab').onclick = openAccount;
   function checkDot(force) {
@@ -2734,6 +2819,520 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDot(false); });
   var m = /#track=([^&]*)/.exec(location.hash || '');
   if (m) { var t = decodeURIComponent(m[1]); try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e) {} setTimeout(function () { window.__hzTrack(t.indexOf('.') > 0 ? t : ''); }, 300); }
+})();
+
+(function () {
+  /* ===================== القايمة الجانبية + الهيدر + عناوين إنجليزي + صفحة المنتجات الخاصة + أيقونات الكروت ===================== */
+  var $$ = function (i) { return document.getElementById(i); }, SP = { psz: [], pz: [], pt: [] }, SXX = {};
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function on(k) { return String(SXX[k]) !== 'لا'; }
+  var IC = {
+    menu: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+    box: '<svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+    ruler: '<svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>',
+    print: '<svg viewBox="0 0 24 24"><path d="M4 7l4-3h8l4 3-2.5 3.2L16 9v11H8V9l-1.5 1.2z"/><path d="M10.5 12.5l1.5 1.5 2.5-3"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>',
+    doc: '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg>',
+    x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    dl: '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
+    back: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>'
+  };
+  var st = document.createElement('style');
+  st.textContent = '#hzmb{position:absolute;top:12px;right:12px;z-index:4}#hzmb .hzib{position:relative}#hzhb{left:12px}' +
+    '.hzib svg{stroke-width:2}.hzdot{position:absolute;top:-1px;right:-1px;width:10px;height:10px;border-radius:50%;background:#e56b58;border:2px solid #1c1812;display:none}' +
+    '.hzdr{position:fixed;inset:0;z-index:90;display:none}.hzdr.open{display:block}.hzdr .bg{position:absolute;inset:0;background:rgba(0,0,0,.65);opacity:0;transition:opacity .25s}.hzdr.open .bg{opacity:1}' +
+    '.hzdr .pn{position:absolute;top:0;bottom:0;right:0;width:min(86vw,340px);background:linear-gradient(180deg,#2b251c,#1a1610);border-left:1px solid rgba(216,180,114,.4);transform:translateX(100%);transition:transform .28s;display:flex;flex-direction:column;overflow:auto}.hzdr.open .pn{transform:none}' +
+    '.hzdr .hd{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--line)}.hzdr .hd b{font-size:19px;letter-spacing:1px;color:var(--gold-2)}' +
+    '.hzdr .it{display:flex;align-items:center;gap:14px;padding:14px 18px;color:var(--ink);font-size:15.5px;font-weight:700;background:none;border:0;border-bottom:1px solid rgba(216,180,114,.1);width:100%;text-align:right;font-family:inherit;cursor:pointer;position:relative}' +
+    '.hzdr .it svg{width:22px;height:22px;fill:none;stroke:var(--gold);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}.hzdr .it small{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-top:2px}.hzdr .it:hover{background:rgba(216,180,114,.07)}' +
+    '.hzdr .it .hzdot{top:14px;right:auto;left:18px;display:none}.hzdr .gap{flex:1}' +
+    '.hzdr .lang{display:flex;gap:6px;padding:12px 18px;align-items:center;border-bottom:1px solid rgba(216,180,114,.1)}.hzdr .lang svg{width:22px;height:22px;fill:none;stroke:var(--gold);stroke-width:1.9;margin-left:8px}.hzdr .lang button{flex:1;border:1px solid var(--gold);background:transparent;color:var(--gold-2);border-radius:30px;padding:7px;font-family:inherit;font-weight:700;cursor:pointer}.hzdr .lang button.on{background:linear-gradient(135deg,var(--gold-2),var(--gold));color:#1a1408}' +
+    '.hzdr .ft{padding:10px 0 18px}.hzdr .ft .it{border-bottom:0;font-size:14px;color:var(--muted)}' +
+    '.hzspg{position:fixed;inset:0;z-index:85;background:#1c1812;display:none;flex-direction:column}.hzspg.open{display:flex}.hzspg .hd{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:#241f17}.hzspg .hd h3{flex:1;font-size:17px;color:var(--gold-2)}.hzspg .bd{flex:1;overflow:auto;padding:14px}.hzspg .nt{font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:12px}' +
+    '.hzspg .gr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}@media(min-width:760px){.hzspg .gr{grid-template-columns:repeat(4,1fr)}}.hzspg .pc{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);cursor:pointer;text-align:center;padding-bottom:8px}.hzspg .pc .im{position:relative;padding-top:120%;background:#2a241b;overflow:hidden}.hzspg .pc .im img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}.hzspg .pc .im img.on{opacity:1}.hzspg .pc b{display:block;font-size:13.5px;margin:8px 6px 2px}.hzspg .pc span{font-size:12px;color:var(--gold-2)}' +
+    '.hzspic{position:absolute;bottom:8px;left:8px;display:flex;gap:5px;z-index:3}.hzspic i{width:26px;height:26px;border-radius:50%;background:rgba(20,17,13,.78);border:1px solid rgba(216,180,114,.6);display:flex;align-items:center;justify-content:center;color:var(--gold-2)}.hzspic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}' +
+    '.hzhelp{line-height:2;font-size:14px}.hzhelp ol{padding-right:20px;margin:10px 0}' +
+    '.hzaskl{color:var(--gold-2);font-weight:800;text-decoration:underline;margin-right:6px;white-space:nowrap}#hzask,#hzpan{display:none!important}';
+  document.head.appendChild(st);
+
+  /* ---------- هيدر: حسابي + تثبيت (شمال) / 3 شرط (يمين) ---------- */
+  var hero = document.querySelector('.hero'), hb = $$('hzhb');
+  var mb = document.createElement('div'); mb.id = 'hzmb'; mb.innerHTML = '<button class="hzib" id="hzmenu" type="button" aria-label="القائمة">' + IC.menu + '<i class="hzdot" id="hztdot"></i></button>'; hero.appendChild(mb);
+  var standalone = (window.navigator.standalone === true) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches), ios = /iphone|ipad|ipod/i.test(navigator.userAgent), dp = null;
+  var ib = document.createElement('button'); ib.id = 'hzin'; ib.className = 'hzib'; ib.type = 'button'; ib.setAttribute('data-tip', 'تثبيت التطبيق'); ib.setAttribute('aria-label', 'تثبيت التطبيق'); ib.innerHTML = IC.dl;
+  if (!standalone && hb) hb.appendChild(ib);
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); dp = e; });
+  function help() {
+    var o = ovl('hzhelp');
+    o.querySelector('.hzs').innerHTML = '<h3><span>تثبيت التطبيق</span><button class="hzx" type="button">×</button></h3><div class="hzhelp">' + (ios ? '<ol><li>اضغط زرار المشاركة في Safari.</li><li>اختار "Add to Home Screen" (إضافة إلى الشاشة الرئيسية).</li><li>اضغط "Add".</li></ol>' : '<ol><li>افتح قائمة المتصفح (⋮).</li><li>اختار "تثبيت التطبيق" أو "Add to Home screen".</li></ol>') + '</div>';
+    o.classList.add('open'); o.querySelector('.hzx').onclick = function () { o.classList.remove('open'); };
+  }
+  ib.onclick = function () { if (dp) { dp.prompt(); dp.userChoice && dp.userChoice.then(function () { dp = null; }); } else help(); };
+  function ovl(id) { var o = $$(id); if (!o) { o = document.createElement('div'); o.id = id; o.className = 'hzo'; o.innerHTML = '<div class="hzs"></div>'; document.body.appendChild(o); o.addEventListener('click', function (e) { if (e.target === o) o.classList.remove('open'); }); } return o; }
+
+  /* ---------- القايمة الجانبية ---------- */
+  var dr = document.createElement('div'); dr.className = 'hzdr'; dr.id = 'hzdr';
+  dr.innerHTML = '<div class="bg"></div><div class="pn"><div class="hd"><b>HoodZilla Store</b><button class="hzib" type="button" id="hzdx" aria-label="إغلاق">' + IC.x + '</button></div>' +
+    '<button class="it" type="button" id="hzd1">' + IC.box + '<span>تتبع الطلب</span><i class="hzdot" id="hztdot2"></i></button>' +
+    '<button class="it" type="button" id="hzd2" data-sp="sz">' + IC.ruler + '<span>اطلب مقاسات خاصة<small>مقاسك بالظبط على المنتجات المتاحة</small></span></button>' +
+    '<button class="it" type="button" id="hzd3" data-sp="pr">' + IC.print + '<span>اطلب طباعة خاصة<small>صمّم وشوف المعاينة 3D</small></span></button>' +
+    '<div class="lang">' + IC.globe + '<button type="button" data-l="ar" class="on">عربي</button><button type="button" data-l="en">English</button></div><div class="gap"></div>' +
+    '<div class="ft"><button class="it" type="button" id="hzd4">' + IC.doc + '<span>سياسة الموقع</span></button></div></div>';
+  document.body.appendChild(dr);
+  function openDr() { dr.classList.add('open'); try { history.pushState({ hz: 'dr' }, '', location.pathname + location.search); dr._p = true; } catch (e) {} }
+  function closeDr(fromPop) { if (!dr.classList.contains('open')) return; dr.classList.remove('open'); if (dr._p) { dr._p = false; if (fromPop !== true) { window.__skipPop = true; setTimeout(function () { window.__skipPop = false; }, 600); try { history.back(); } catch (e) {} } } }
+  window.addEventListener('popstate', function () { if (dr.classList.contains('open') && !(history.state && history.state.hz === 'dr')) { dr._p = false; dr.classList.remove('open'); } });
+  $$('hzmenu').onclick = openDr; $$('hzdx').onclick = function () { closeDr(); }; dr.querySelector('.bg').onclick = function () { closeDr(); };
+  $$('hzd1').onclick = function () { closeDr(); setTimeout(function () { window.__hzTrack(); }, 60); };
+  $$('hzd4').onclick = function () { closeDr(); setTimeout(function () { var b = $$('hzpl2'); if (b) b.click(); }, 60); };
+  Array.prototype.forEach.call(dr.querySelectorAll('[data-sp]'), function (b) { b.onclick = function () { var k = b.getAttribute('data-sp'); closeDr(); setTimeout(function () { spPage(k); }, 60); }; });
+  new MutationObserver(function () { var d = $$('hztdot'); $$('hztdot2').style.display = d && d.style.display === 'block' ? 'block' : 'none'; }).observe($$('hztdot'), { attributes: true, attributeFilter: ['style'] });
+
+  /* ---------- صفحة المنتجات المتاحة للمقاس/الطباعة الخاصة ---------- */
+  var pg = document.createElement('div'); pg.className = 'hzspg'; pg.id = 'hzspg'; document.body.appendChild(pg);
+  function elig(p, k) {
+    if (!p.inStock) return false;
+    if (k === 'sz') return !!p.sp && on('المقاس_الخاص_مفعل') && (p.mt !== 'pants' || SP.psz.length > 0);
+    return !!p.pp && on('الطباعة_الخاصة_مفعلة');
+  }
+  function spPage(k) {
+    var list = ALL.filter(function (p) { return elig(p, k); });
+    pg.innerHTML = '<div class="hd"><h3>' + (k === 'sz' ? 'مقاسات خاصة' : 'طباعة خاصة') + '</h3><button class="hzib" type="button" id="hzspx">' + IC.x + '</button></div><div class="bd"><div class="nt">' + (k === 'sz' ? 'اختار المنتج اللي عايزه بمقاسك بالظبط، وهنفتحلك نموذج القياسات.' : 'اختار المنتج، وارفع تصميمك وشوف شكله على المنتج بالـ 3D قبل ما تطلب.') + '</div><div class="gr" id="hzspgr"></div></div>';
+    var gr = $$('hzspgr');
+    if (!list.length) gr.innerHTML = '<div class="nt">مفيش منتجات متاحة دلوقتي.</div>';
+    list.forEach(function (p) {
+      var c = document.createElement('div'), cp = cardPrice(p); c.className = 'pc';
+      c.innerHTML = '<div class="im"></div><b></b><span></span>'; c.querySelector('b').textContent = p.name; c.querySelector('span').textContent = (cp.differ ? 'يبدأ من ' : '') + cp.text + ' ' + CURRENCY;
+      var imgs = cardImgs(p); if (imgs.length) { var im = makeImg(imgs[0].id, 420, p.name); c.querySelector('.im').appendChild(im); im.load(); im.className = 'on'; }
+      c.onclick = function () { pg.classList.remove('open'); closePg(true); openModal(p); setTimeout(function () { if (window.__hzOpenSpecial) window.__hzOpenSpecial(k); }, 450); };
+      gr.appendChild(c);
+    });
+    $$('hzspx').onclick = function () { closePg(); };
+    pg.classList.add('open'); try { history.pushState({ hz: 'sp' }, '', location.pathname + location.search); pg._p = true; } catch (e) {}
+  }
+  function closePg(silent) { pg.classList.remove('open'); if (pg._p) { pg._p = false; if (!silent) { window.__skipPop = true; setTimeout(function () { window.__skipPop = false; }, 600); try { history.back(); } catch (e) {} } } }
+  window.addEventListener('popstate', function () { if (pg.classList.contains('open') && !(history.state && history.state.hz === 'sp')) { pg._p = false; pg.classList.remove('open'); } });
+
+  /* ---------- أيقونات المقاس/الطباعة على كروت المنتجات ---------- */
+  function decorate() {
+    Array.prototype.forEach.call(document.querySelectorAll('#grid .card'), function (c) {
+      if (c._hzd) return; c._hzd = 1;
+      var chip = c.querySelector('.codechip'); if (!chip) return;
+      var p = ALL.filter(function (x) { return dcode(x.code) === chip.textContent; })[0]; if (!p) return;
+      var a = elig(p, 'sz'), b = elig(p, 'pr'); if (!a && !b) return;
+      var w = c.querySelector('.imgwrap'); if (!w) return;
+      var d = document.createElement('div'); d.className = 'hzspic'; d.innerHTML = (a ? '<i title="مقاس خاص">' + IC.ruler + '</i>' : '') + (b ? '<i title="طباعة خاصة">' + IC.print + '</i>' : ''); w.appendChild(d);
+    });
+  }
+  new MutationObserver(decorate).observe($$('grid'), { childList: true });
+
+  /* ---------- عناوين إنجليزي (العناوين والأزرار الرئيسية بس) ---------- */
+  var EN = {
+    'تتبع الطلب': 'Track order', 'اطلب مقاسات خاصة': 'Custom sizes', 'اطلب طباعة خاصة': 'Custom printing', 'سياسة الموقع': 'Website policy', 'مقاسات خاصة': 'Custom sizes', 'طباعة خاصة': 'Custom printing',
+    'القائمة': 'Menu', 'جدول المقاسات': 'Size chart', 'اعرف مقاسك': 'Find your size', 'حسابي': 'My account', 'طلباتك': 'My orders', 'تتبع طلباتك': 'Track your orders', 'دخول': 'Log in', 'حساب جديد': 'Sign up',
+    'إضافة للسلة': 'Add to cart', 'السلة': 'Cart', 'بيانات العميل': 'Customer details', 'إتمام الطلب': 'Place order', 'اختر اللون': 'Choose colour', 'اللون': 'Colour', 'المقاس': 'Size', 'الكمية': 'Quantity',
+    'تثبيت التطبيق': 'Install app', 'سياسة الشغل والاسترجاع': 'Work & return policy', 'أهلاً بيك': 'Welcome', 'كمّل بياناتك': 'Complete your details', 'عناويني': 'My addresses', 'تفاصيل الطلب': 'Order details',
+    'تصميم جديد': 'New design', 'التصاميم': 'Designs', 'مكان الطباعة': 'Print placement', 'معاينة 3D': '3D preview', 'عربي': 'عربي', 'English': 'English'
+  };
+  var orig = new WeakMap(), lang = lsGet('hz_lang') === 'en' ? 'en' : 'ar', busy = false;
+  function tr(root) {
+    if (busy) return; busy = true;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, list = [];
+    while ((n = w.nextNode())) list.push(n);
+    list.forEach(function (t) {
+      var raw = t.nodeValue, k = (orig.has(t) ? orig.get(t) : raw).trim();
+      if (lang === 'en' && EN[k] && !/^(script|style)$/i.test(t.parentNode.nodeName)) { if (!orig.has(t)) orig.set(t, raw); t.nodeValue = raw.replace(k, EN[k]); }
+      else if (lang === 'ar' && orig.has(t)) { t.nodeValue = orig.get(t); orig.delete(t); }
+    });
+    busy = false;
+  }
+  function setLang(l) {
+    lang = l; lsSet('hz_lang', l); Array.prototype.forEach.call(dr.querySelectorAll('.lang button'), function (b) { b.classList.toggle('on', b.getAttribute('data-l') === l); });
+    document.documentElement.setAttribute('lang', l === 'en' ? 'en' : 'ar'); tr(document.body);
+  }
+  Array.prototype.forEach.call(dr.querySelectorAll('.lang button'), function (b) { b.onclick = function () { setLang(b.getAttribute('data-l')); }; });
+  var tm = null; new MutationObserver(function () { if (lang !== 'en') return; clearTimeout(tm); tm = setTimeout(function () { tr(document.body); }, 120); }).observe(document.body, { childList: true, subtree: true, characterData: false });
+  if (lang === 'en') setLang('en');
+
+  /* ---------- بيانات الكتالوج ---------- */
+  var _ad = applyData;
+  applyData = function (d, f) { SXX = d.settings || {}; SP = { psz: d.psz || [], pz: d.pz || [], pt: d.pt || [] }; window.__hzSP = SP; _ad(d, f); setTimeout(decorate, 50); if (lang === 'en') setTimeout(function () { tr(document.body); }, 200); };
+  window.__hzElig = elig;
+})();
+
+(function () {
+  /* ===================== تعديلات واجهة صغيرة (اسم المنتج في النص، بوكس الكود، التوفر...) ===================== */
+  var $$ = function (i) { return document.getElementById(i); };
+  var st = document.createElement('style');
+  st.textContent = '.mtop{position:relative}.mtt{position:static}.mtt h2{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:calc(100% - 262px);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0;font-size:17px;margin:0}' +
+    '.otile.promo .ooff{font-size:13px;line-height:1.45;font-weight:800}.otile.promo .otitle{font-size:12px}' +
+    '.hzt b{color:var(--gold-2);font-size:15px}.hzt small{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}' +
+    '#hzpl2{display:block;clear:both;margin:10px auto 0}#foot{text-align:center}';
+  document.head.appendChild(st);
+  // لو الصنف/اللون/المنتج نافذ: "اسأل عن توفره" بتبقى جنب جملة اللون (والزرار القديم اتشال)
+  var _ui = updateInfo;
+  updateInfo = function () {
+    _ui.apply(this, arguments);
+    try {
+      var p = curProduct, h = $$('chint'); if (!p || !h) return;
+      var old = h.querySelector('.hzaskl'); if (old) old.remove();
+      var out = !p.inStock || (curColor && !curColor.inStock) || (curSize && !curSize.inStock);
+      if (!out) return;
+      var msg = 'مرحباً، عايز أعرف هيتوفر إمتى: ' + p.name + ' (' + dcode(p.code) + ')' + (curColor && curColor.name ? ' - لون ' + curColor.name : '') + (curSize && curSize.size ? ' - مقاس ' + curSize.size : '');
+      var a = document.createElement('a'); a.className = 'hzaskl'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'اسأل عن توفره';
+      a.href = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msg); h.appendChild(a);
+    } catch (e) {}
+  };
+})();
+
+(function () {
+  /* ===================== مصمّم الطباعة الخاصة: معاينة 3D + أكتر من تصميم + إزالة خلفية (سريعة / AI) + رفع ===================== */
+  var CFG = {
+    THREE: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+    LIBS: ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/DecalGeometry.js'],
+    ORT: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js',
+    AI_MODEL: 'u2netp.onnx',                 // ملف الموديل في جذر الريبو
+    MODELS: { hoodie: 'hoodie.glb', jacket: 'jacket.glb', pants: 'pants.glb' },
+    WORK_MAX: 1600, CHUNK: 2400000
+  };
+  var $$ = function (i) { return document.getElementById(i); };
+  function N(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function E(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function rnd() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+  var COL = { 'اسود': '#161616', 'ابيض': '#f1f1ee', 'رمادي': '#8a8a8a', 'رصاصي': '#5e5e62', 'كحلي': '#1d2b4a', 'ازرق': '#2f5aa8', 'لبني': '#8ec5ea', 'احمر': '#b3262b', 'بوردو': '#5b1a26', 'اخضر': '#2f6b3d', 'زيتي': '#5b6139', 'بيج': '#cdb894', 'كريمي': '#e8dcc2', 'بني': '#5a3b27', 'اصفر': '#e3c13b', 'برتقالي': '#d9702a', 'بينك': '#e58fb1', 'وردي': '#e58fb1', 'موف': '#7b4fa0', 'بنفسجي': '#6a3f95', 'جملي': '#b07a3a', 'ستون': '#9c9684', 'اوف وايت': '#ece6d6' };
+  function norm(s) { return String(s || '').replace(/[ً-ْ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').trim(); }
+  function colorHex(name, opts) {
+    var m = {}; Object.keys(COL).forEach(function (k) { m[norm(k)] = COL[k]; });
+    String((window.__hzSET || {})['ألوان_المجسم'] || '').split(/[;\n،]/).forEach(function (p) { var a = p.split('='); if (a.length === 2 && /^#?[0-9a-f]{3,8}$/i.test(a[1].trim())) m[norm(a[0])] = (a[1].trim()[0] === '#' ? '' : '#') + a[1].trim(); });
+    var n = norm(name); if (m[n]) return m[n];
+    var best = ''; Object.keys(m).forEach(function (k) { if (n.indexOf(k) > -1 && k.length > best.length) best = k; });
+    return best ? m[best] : '#6f6f6f';
+  }
+  function loadScript(u) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = u; s.onload = res; s.onerror = function () { rej(new Error('load ' + u)); }; document.head.appendChild(s); }); }
+  var libP = null;
+  function loadThree() {
+    if (window.THREE && THREE.OrbitControls && THREE.GLTFLoader && THREE.DecalGeometry) return Promise.resolve();
+    if (libP) return libP;
+    libP = loadScript(CFG.THREE).then(function () { return Promise.all(CFG.LIBS.map(loadScript)); }).catch(function (e) { libP = null; throw e; });
+    return libP;
+  }
+  function webglOk() { try { var c = document.createElement('canvas'); return !!(c.getContext('webgl') || c.getContext('experimental-webgl')); } catch (e) { return false; } }
+  window.__hzPreloadDesigner = function () { if (webglOk()) loadThree().catch(function () {}); };
+
+  var st = document.createElement('style');
+  st.textContent = '#hzpd{position:fixed;inset:0;z-index:95;background:#16130e;display:none;flex-direction:column}#hzpd.open{display:flex}#hzpd .hd{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#241f17;border-bottom:1px solid var(--line)}#hzpd .hd h3{flex:1;font-size:16px;color:var(--gold-2)}#hzpd .sc{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}' +
+    '#hzpd .stg{position:relative;width:100%;height:46vh;min-height:300px;background:radial-gradient(ellipse at 50% 35%,#2d261b,#14110c);touch-action:none}#hzpd .stg canvas{width:100%;height:100%;display:block;touch-action:none}#hzpd .hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:11.5px;color:var(--muted);pointer-events:none}#hzpd .ldg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;pointer-events:none}' +
+    '#hzpd .pn{padding:12px 14px;display:flex;flex-direction:column;gap:10px}#hzpd .chips{display:flex;gap:6px;flex-wrap:wrap}#hzpd .chips button,#hzpd .tb button,#hzpd .tb label.bt{border:1px solid rgba(216,180,114,.5);background:transparent;color:var(--gold-2);border-radius:30px;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}#hzpd .chips button.on{background:linear-gradient(135deg,var(--gold-2),var(--gold));color:#1a1408}#hzpd .chips button:disabled{opacity:.35}' +
+    '#hzpd .strip{display:flex;gap:8px;overflow:auto;padding-bottom:2px}#hzpd .tn{position:relative;flex:none;width:62px;height:62px;border-radius:10px;border:2px solid transparent;background:#2a241b;overflow:hidden;cursor:pointer}#hzpd .tn.on{border-color:var(--gold)}#hzpd .tn img{width:100%;height:100%;object-fit:contain}#hzpd .tn i{position:absolute;top:1px;left:1px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-style:normal;font-size:13px;line-height:20px;text-align:center}' +
+    '#hzpd .add{flex:none;width:62px;height:62px;border-radius:10px;border:1.5px dashed var(--gold);color:var(--gold-2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:2px;cursor:pointer;background:rgba(216,180,114,.06)}#hzpd .add b{font-size:22px;line-height:1}' +
+    '#hzpd .sl{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}#hzpd .sl span{width:70px;flex:none}#hzpd .sl input{flex:1;accent-color:#d8b472}#hzpd .sl em{width:62px;text-align:left;font-style:normal;color:var(--gold-2);direction:ltr}#hzpd .tb{display:flex;gap:6px;flex-wrap:wrap}#hzpd .info{font-size:12.5px;line-height:1.8;color:var(--gold-2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}#hzpd .warn{color:var(--red);font-size:12.5px}#hzpd .msg{font-size:12.5px;line-height:1.8;color:var(--muted)}' +
+    '#hzpd .ft{padding:10px 14px 14px;border-top:1px solid var(--line);background:#241f17}#hzpd .pbar{height:6px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:8px;display:none}#hzpd .pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold-3),var(--gold-2));transition:width .2s}#hzpd textarea{width:100%;padding:9px;border-radius:10px;border:1px solid rgba(216,180,114,.28);background:var(--panel);color:var(--ink);font-family:inherit;font-size:14px}' +
+    '#hzpd .f2d{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}#hzpd .f2d .ph{position:relative;height:100%;aspect-ratio:3/4;max-width:100%}#hzpd .f2d .ph>img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#hzpd .f2d .dg{position:absolute;touch-action:none;cursor:grab;mix-blend-mode:multiply}#hzpd .f2d .dg.on{outline:1.5px dashed var(--gold)}';
+  document.head.appendChild(st);
+
+  var ov = document.createElement('div'); ov.id = 'hzpd'; document.body.appendChild(ov);
+  var D = null;   // الجلسة الحالية
+
+  function open(o) {
+    D = { o: o, designs: [], sel: -1, three: null, mode3d: false, saving: false, closeP: false };
+    if (o.state && o.state.designs) { D.designs = o.state.designs; D.designs.forEach(function (d) { d.mesh = null; d.tex = null; d.el = null; }); D.sel = D.designs.length ? 0 : -1; D.restored = true; }
+    ov.innerHTML = '<div class="hd"><h3>طباعة خاصة</h3><button class="hzib" type="button" id="hzpdx" aria-label="إغلاق"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="sc"><div class="stg" id="hzpds"><div class="ldg" id="hzpdl">جاري تحميل المجسم...</div></div><div class="pn" id="hzpdp"></div></div><div class="ft"><div class="pbar" id="hzpdb"><i></i></div><div class="msg" id="hzpdm" style="margin-bottom:6px"></div><button class="btn add" type="button" id="hzpdok">حفظ الطباعة الخاصة</button></div>';
+    ov.classList.add('open'); try { history.pushState({ hz: 'pd' }, '', location.pathname + location.search); D.closeP = true; } catch (e) {}
+    $$('hzpdx').onclick = function () { close(); };
+    $$('hzpdok').onclick = save;
+    panel();
+    if (!webglOk()) { start2d(); return; }
+    loadThree().then(function () { return init3d(); }).then(function () { D.mode3d = true; panel(); }, function () { start2d(); });
+  }
+  function close(silent) {
+    if (D && D.saving) return;
+    ov.classList.remove('open');
+    if (D && D.three) { try { D.three.dispose(); } catch (e) {} D.three = null; }
+    if (D && D.closeP) { D.closeP = false; if (!silent) { window.__skipPop = true; setTimeout(function () { window.__skipPop = false; }, 600); try { history.back(); } catch (e) {} } }
+    ov.querySelector('.sc').innerHTML = '';
+  }
+  window.addEventListener('popstate', function () { if (ov.classList.contains('open') && !(history.state && history.state.hz === 'pd') && D && !D.saving) { D.closeP = false; close(true); } });
+
+  /* ---------- لوحة التحكم ---------- */
+  function zonesFor() { return D.o.zones; }
+  function zname(c) { var n = c; D.o.zones.forEach(function (z) { if (z.code === c) n = z.name; }); return n; }
+  function zobj(c) { var r = null; D.o.zones.forEach(function (z) { if (z.code === c) r = z; }); return r; }
+  function cur() { return D.designs[D.sel] || null; }
+  function feeNow() { return D.designs.length ? D.o.fee({ d: D.designs.map(function (d) { return { w: d.wcm, h: d.hcm }; }) }) : 0; }
+  function panel() {
+    var p = $$('hzpdp'); if (!p) return; var d = cur(), h = '';
+    h += '<div class="chips" id="hzpdz">' + zonesFor().map(function (z) { return '<button type="button" data-z="' + E(z.code) + '" class="' + (d && d.zone === z.code ? 'on' : '') + '">' + E(z.name) + '</button>'; }).join('') + '</div>';
+    h += '<div class="strip">' + D.designs.map(function (x, i) { return '<div class="tn' + (i === D.sel ? ' on' : '') + '" data-i="' + i + '"><img alt="" src="' + x.thumb + '"><i data-r="' + i + '">×</i></div>'; }).join('') + (D.designs.length < D.o.maxN ? '<label class="add"><b>+</b>تصميم<input id="hzpdf" type="file" accept="image/png,image/jpeg,image/webp" style="display:none"></label>' : '') + '</div>';
+    h += '<div class="msg" id="hzpde"></div>';
+    if (d) {
+      var z = zobj(d.zone), mx = z ? Math.min(z.w, z.h / d.asp) : 40;
+      h += '<div class="sl"><span>الحجم</span><input id="hzpdw" type="range" min="2" max="' + Math.max(3, Math.floor(mx * 2) / 2) + '" step="0.5" value="' + Math.min(d.wcm, mx) + '"><em id="hzpdwv">' + d.wcm.toFixed(1) + '×' + d.hcm.toFixed(1) + ' سم</em></div>';
+      h += '<div class="sl"><span>تدوير</span><input id="hzpdr" type="range" min="-180" max="180" step="1" value="' + Math.round(d.rot * 180 / Math.PI) + '"><em id="hzpdrv">' + Math.round(d.rot * 180 / Math.PI) + '°</em></div>';
+      h += '<div class="tb"><button type="button" id="hzpdq">' + (d.nbKind === 'fast' ? 'تعديل الإزالة السريعة' : 'إزالة الخلفية (سريعة)') + '</button><button type="button" id="hzpda">إزالة الخلفية بالـ AI</button>' + (d.nbKind ? '<button type="button" id="hzpdo">رجوع للأصلي</button>' : '') + '</div>';
+      if (d.nbKind === 'fast') h += '<div class="sl"><span>الدرجة</span><input id="hzpdt" type="range" min="8" max="120" step="2" value="' + d.tol + '"><em>' + d.tol + '</em></div>';
+      if (Math.min(d.w0, d.h0) < 800) h += '<div class="warn">الصورة صغيرة (' + d.w0 + '×' + d.h0 + ') وممكن تطلع مش واضحة في الطباعة. الأفضل صورة أكبر.</div>';
+      h += '<div class="info">المكان: <b>' + E(zname(d.zone)) + '</b> · المقاس ' + d.wcm.toFixed(1) + '×' + d.hcm.toFixed(1) + ' سم</div>';
+    } else h += '<div class="info">ارفع تصميمك (PNG أو JPG أو WebP حتى ' + D.o.maxMB + ' ميجا) وهيظهر على المنتج. تقدر تضيف لحد ' + D.o.maxN + ' تصاميم.</div>';
+    h += '<textarea id="hzpdn" rows="2" placeholder="ملاحظات على الطباعة (اختياري)">' + E(D.note || (D.o.existing && D.o.existing.note) || '') + '</textarea>';
+    h += '<div class="info">سعر الطباعة للقطعة: <b>' + (D.designs.length ? feeNow() + ' ' + CURRENCY : '-') + '</b> (حسب عدد التصاميم ومساحتها) · المعاينة تقريبية وبنراجعها معاك قبل الطباعة.</div>';
+    p.innerHTML = h;
+    Array.prototype.forEach.call(p.querySelectorAll('[data-z]'), function (b) { b.onclick = function () { setZone(b.getAttribute('data-z')); }; });
+    Array.prototype.forEach.call(p.querySelectorAll('.tn'), function (t) { t.onclick = function (e) { if (e.target.getAttribute('data-r') != null) return; D.sel = +t.getAttribute('data-i'); panel(); focusDesign(); }; });
+    Array.prototype.forEach.call(p.querySelectorAll('[data-r]'), function (t) { t.onclick = function (e) { e.stopPropagation(); removeDesign(+t.getAttribute('data-r')); }; });
+    if ($$('hzpdf')) $$('hzpdf').onchange = function () { var f = this.files[0]; this.value = ''; if (f) addFile(f); };
+    if ($$('hzpdw')) $$('hzpdw').oninput = function () { var x = cur(); x.wcm = +this.value; x.hcm = x.wcm * x.asp; $$('hzpdwv').textContent = x.wcm.toFixed(1) + '×' + x.hcm.toFixed(1) + ' سم'; refresh(x); infoLine(); };
+    if ($$('hzpdr')) $$('hzpdr').oninput = function () { var x = cur(); x.rot = +this.value * Math.PI / 180; $$('hzpdrv').textContent = this.value + '°'; refresh(x); };
+    if ($$('hzpdq')) $$('hzpdq').onclick = function () { var x = cur(); if (x.nbKind !== 'fast') { x.nbKind = 'fast'; applyFast(x); } panel(); };
+    if ($$('hzpdt')) $$('hzpdt').oninput = function () { var x = cur(); x.tol = +this.value; this.nextElementSibling.textContent = x.tol; applyFast(x); };
+    if ($$('hzpda')) $$('hzpda').onclick = function () { aiRemove(cur()); };
+    if ($$('hzpdo')) $$('hzpdo').onclick = function () { var x = cur(); x.nbKind = ''; x.cv = x.work; retex(x); panel(); };
+    $$('hzpdn').oninput = function () { D.note = this.value.slice(0, 160); };
+  }
+  function infoLine() { var d = cur(), i = $$('hzpdp') && $$('hzpdp').querySelectorAll('.info'); if (d && i && i.length) { i[0].innerHTML = 'المكان: <b>' + E(zname(d.zone)) + '</b> · المقاس ' + d.wcm.toFixed(1) + '×' + d.hcm.toFixed(1) + ' سم'; if (i[1]) i[1].innerHTML = 'سعر الطباعة للقطعة: <b>' + feeNow() + ' ' + CURRENCY + '</b> (حسب عدد التصاميم ومساحتها) · المعاينة تقريبية وبنراجعها معاك قبل الطباعة.'; } }
+  function msg(t) { var m = $$('hzpde'); if (m) m.textContent = t || ''; }
+
+  /* ---------- إضافة تصميم ---------- */
+  function addFile(f) {
+    var okT = /^image\/(png|jpeg|webp)$/.test(f.type) || (!f.type && /\.(png|jpe?g|webp)$/i.test(f.name));
+    if (!okT) { msg('الصيغة دي مش مدعومة. المدعوم: PNG أو JPG أو WebP.'); return; }
+    if (f.size > D.o.maxMB * 1048576) { msg('حجم الملف أكبر من ' + D.o.maxMB + ' ميجا. صغّره وجرب تاني.'); return; }
+    msg('جاري تجهيز التصميم...');
+    var url = URL.createObjectURL(f), im = new Image();
+    im.onerror = function () { URL.revokeObjectURL(url); msg('الملف ده مش صورة سليمة، جرب ملف تاني.'); };
+    im.onload = function () {
+      var s = Math.min(1, CFG.WORK_MAX / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(im.naturalWidth * s)); cv.height = Math.max(1, Math.round(im.naturalHeight * s));
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      var t = document.createElement('canvas'); t.width = 124; t.height = Math.max(1, Math.round(124 * cv.height / cv.width)); t.getContext('2d').drawImage(cv, 0, 0, t.width, t.height);
+      URL.revokeObjectURL(url);
+      var asp = cv.height / cv.width, zs = zonesFor(), z0 = zs[0], d = { id: rnd(), file: f, mime: f.type || (/png$/i.test(f.name) ? 'image/png' : /webp$/i.test(f.name) ? 'image/webp' : 'image/jpeg'), w0: im.naturalWidth, h0: im.naturalHeight, work: cv, cv: cv, thumb: t.toDataURL('image/png'), asp: asp, nbKind: '', tol: 40, rot: 0, zone: z0.code, wcm: 10, hcm: 10 * asp, pos: null, nrm: null, mesh: null, ref: '', nbRef: '', dirty: true };
+      // أول مكان: لو في مكان مختار قبل كده، أو "صدر" لو متاح
+      zs.forEach(function (z) { if (z.code === 'chest') z0 = z; }); d.zone = z0.code; fit(d);
+      D.designs.push(d); D.sel = D.designs.length - 1; msg(''); mkTex(d); place(d, d.zone); panel(); focusDesign();
+    };
+    im.src = url;
+  }
+  function fit(d) { var z = zobj(d.zone); if (!z) return; d.wcm = Math.max(2, Math.min(20, z.w, z.h / d.asp)); d.hcm = d.wcm * d.asp; }
+  function removeDesign(i) { var d = D.designs[i]; if (d && d.mesh && D.three) { D.three.scene.remove(d.mesh); d.mesh.geometry.dispose(); } if (d && d.el) d.el.remove(); D.designs.splice(i, 1); D.sel = Math.min(D.sel, D.designs.length - 1); panel(); }
+  function setZone(code) {
+    var d = cur(); if (!d) { lookAtZone(code); return; }
+    d.zone = code; d.wcm = Math.min(d.wcm, zobj(code).w, zobj(code).h / d.asp); d.hcm = d.wcm * d.asp; place(d, code); panel(); lookAtZone(code);
+  }
+
+  /* ---------- إزالة الخلفية ---------- */
+  function applyFast(d) {
+    var w = d.work.width, h = d.work.height, c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'); x.drawImage(d.work, 0, 0);
+    var im = x.getImageData(0, 0, w, h), a = im.data, px = function (i) { return [a[i * 4], a[i * 4 + 1], a[i * 4 + 2]]; };
+    var bg = [0, 0, 0], k = 0, pts = [[2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3], [w >> 1, 1], [w >> 1, h - 2], [1, h >> 1], [w - 2, h >> 1]];
+    pts.forEach(function (p) { var q = px(Math.max(0, Math.min(h - 1, p[1])) * w + Math.max(0, Math.min(w - 1, p[0]))); bg[0] += q[0]; bg[1] += q[1]; bg[2] += q[2]; k++; });
+    bg = [bg[0] / k, bg[1] / k, bg[2] / k];
+    var tol = d.tol, seen = new Uint8Array(w * h), stack = [];
+    function dist(i) { var dr = a[i * 4] - bg[0], dg = a[i * 4 + 1] - bg[1], db = a[i * 4 + 2] - bg[2]; return Math.sqrt(dr * dr + dg * dg + db * db) / 1.732; }
+    function push(i) { if (!seen[i] && dist(i) <= tol) { seen[i] = 1; stack.push(i); } }
+    var xx, yy; for (xx = 0; xx < w; xx++) { push(xx); push((h - 1) * w + xx); } for (yy = 0; yy < h; yy++) { push(yy * w); push(yy * w + w - 1); }
+    while (stack.length) { var i = stack.pop(), cx = i % w, cy = (i / w) | 0; if (cx > 0) push(i - 1); if (cx < w - 1) push(i + 1); if (cy > 0) push(i - w); if (cy < h - 1) push(i + w); }
+    for (var j = 0; j < w * h; j++) {
+      if (seen[j]) a[j * 4 + 3] = 0;
+      else { var cxj = j % w, cyj = (j / w) | 0, nb = (cxj > 0 && seen[j - 1]) || (cxj < w - 1 && seen[j + 1]) || (cyj > 0 && seen[j - w]) || (cyj < h - 1 && seen[j + w]); if (nb) { var dd = dist(j), f = Math.max(0, Math.min(1, (dd - tol) / (tol * 0.6 + 6))); a[j * 4 + 3] = Math.round(a[j * 4 + 3] * f); } }
+    }
+    x.putImageData(im, 0, 0); d.cv = c; d.nbKind = 'fast'; d.dirty = true; retex(d);
+  }
+  var ortP = null;
+  function loadOrt() {
+    if (window.ort) return Promise.resolve();
+    if (!ortP) ortP = loadScript(CFG.ORT).catch(function (e) { ortP = null; throw e; });
+    return ortP;
+  }
+  var sess = null;
+  function aiRemove(d) {
+    if (!d) return; msg('جاري تحميل أداة الـ AI (أول مرة بتاخد شوية)...'); $$('hzpda').disabled = true;
+    loadOrt().then(function () {
+      ort.env.wasm.numThreads = 1; ort.env.wasm.proxy = false;
+      if (sess) return sess;
+      return ort.InferenceSession.create(CFG.AI_MODEL, { executionProviders: ['wasm'] }).then(function (s) { sess = s; return s; });
+    }).then(function (s) {
+      msg('جاري إزالة الخلفية...');
+      var S = 320, c = document.createElement('canvas'); c.width = S; c.height = S; var x = c.getContext('2d'); x.drawImage(d.work, 0, 0, S, S);
+      var px = x.getImageData(0, 0, S, S).data, f = new Float32Array(3 * S * S), mean = [0.485, 0.456, 0.406], sd = [0.229, 0.224, 0.225];
+      for (var i = 0; i < S * S; i++) for (var ch = 0; ch < 3; ch++) f[ch * S * S + i] = (px[i * 4 + ch] / 255 - mean[ch]) / sd[ch];
+      var feeds = {}; feeds[s.inputNames[0]] = new ort.Tensor('float32', f, [1, 3, S, S]);
+      return s.run(feeds).then(function (out) {
+        var o = out[s.outputNames[0]].data, mn = 1e9, mx = -1e9, i2; for (i2 = 0; i2 < o.length; i2++) { if (o[i2] < mn) mn = o[i2]; if (o[i2] > mx) mx = o[i2]; }
+        var m = document.createElement('canvas'); m.width = S; m.height = S; var mx2 = m.getContext('2d'), id = mx2.createImageData(S, S);
+        for (i2 = 0; i2 < S * S; i2++) { var v = (o[i2] - mn) / (mx - mn || 1); v = Math.max(0, Math.min(1, (v - 0.12) / 0.7)); id.data[i2 * 4] = 255; id.data[i2 * 4 + 1] = 255; id.data[i2 * 4 + 2] = 255; id.data[i2 * 4 + 3] = Math.round(v * 255); }
+        mx2.putImageData(id, 0, 0);
+        var r = document.createElement('canvas'); r.width = d.work.width; r.height = d.work.height; var rx = r.getContext('2d');
+        rx.drawImage(d.work, 0, 0); rx.globalCompositeOperation = 'destination-in'; rx.imageSmoothingQuality = 'high'; rx.drawImage(m, 0, 0, r.width, r.height);
+        d.cv = r; d.nbKind = 'ai'; d.dirty = true; retex(d); msg(''); panel();
+      });
+    }).catch(function (e) { msg('تعذّر تشغيل الـ AI على جهازك، جرب الإزالة السريعة أو ارفع صورة من غير خلفية.'); if ($$('hzpda')) $$('hzpda').disabled = false; });
+  }
+
+  /* ---------- 3D ---------- */
+  function mkTex(d) { if (!D.three) return; if (d.tex) d.tex.dispose(); d.tex = new THREE.CanvasTexture(d.cv); d.tex.anisotropy = 4; d.tex.encoding = THREE.sRGBEncoding; }
+  function retex(d) { if (D.three) { mkTex(d); refresh(d); } else if (d.el) { d.el.src = d.cv.toDataURL('image/png'); } d.thumbDirty = true; }
+  function init3d() {
+    var host = $$('hzpds'); if (!host) return Promise.reject();
+    var T = {}, w = host.clientWidth || 360, h = host.clientHeight || 340;
+    T.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); T.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); T.renderer.setSize(w, h); T.renderer.outputEncoding = THREE.sRGBEncoding;
+    host.insertBefore(T.renderer.domElement, host.firstChild);
+    T.scene = new THREE.Scene(); T.cam = new THREE.PerspectiveCamera(32, w / h, 0.05, 50); T.cam.position.set(0, 0.05, 2.7);
+    T.scene.add(new THREE.AmbientLight(0xffffff, 0.75)); var dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(1.5, 2, 3); T.scene.add(dl); var dl2 = new THREE.DirectionalLight(0xffffff, 0.35); dl2.position.set(-2, 1, -3); T.scene.add(dl2);
+    T.ray = new THREE.Raycaster(); T.meshes = []; T.anch = {}; D.three = T;
+    host.insertAdjacentHTML('beforeend', '<div class="hint">اسحب بعيد عن التصميم لتدوير المجسم · اضغط على التصميم واسحبه لتحريكه</div>');
+    var el = T.renderer.domElement, drag = null;
+    function ndc(e) { var r = el.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
+    el.addEventListener('pointerdown', function (e) {
+      T.ray.setFromCamera(ndc(e), T.cam); var ms = D.designs.filter(function (d) { return d.mesh; }).map(function (d) { return d.mesh; }), hit = T.ray.intersectObjects(ms, false)[0];
+      if (hit) { var i = D.designs.findIndex(function (d) { return d.mesh === hit.object; }); if (i > -1) { D.sel = i; drag = { i: i }; T.controls.enabled = false; try { el.setPointerCapture(e.pointerId); } catch (x) {} panel(); e.stopPropagation(); } }
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!drag) return; T.ray.setFromCamera(ndc(e), T.cam); var hit = T.ray.intersectObjects(T.meshes, true)[0]; if (!hit) return;
+      var d = D.designs[drag.i], n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld); d.pos = hit.point.clone(); d.nrm = n; refresh(d);
+    });
+    function up() { if (!drag) return; var d = D.designs[drag.i]; drag = null; T.controls.enabled = true; if (d && d.pos) { var z = nearestZone(d.pos); if (z && z !== d.zone) { d.zone = z; var zz = zobj(z); d.wcm = Math.min(d.wcm, zz.w, zz.h / d.asp); d.hcm = d.wcm * d.asp; refresh(d); } panel(); } }
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    T.controls = new THREE.OrbitControls(T.cam, el); T.controls.enablePan = false; T.controls.enableDamping = true; T.controls.dampingFactor = 0.12; T.controls.minDistance = 1.2; T.controls.maxDistance = 4.2; T.controls.target.set(0, 0, 0);
+    var alive = true; T.dispose = function () { alive = false; T.renderer.dispose(); window.removeEventListener('resize', rs); }; function loop() { if (!alive) return; T.controls.update(); T.renderer.render(T.scene, T.cam); requestAnimationFrame(loop); } loop();
+    function rs() { var hh = $$('hzpds'); if (!hh) return; var w2 = hh.clientWidth, h2 = hh.clientHeight; T.renderer.setSize(w2, h2); T.cam.aspect = w2 / h2; T.cam.updateProjectionMatrix(); } window.addEventListener('resize', rs);
+    return loadModel(T).then(function () { var l = $$('hzpdl'); if (l) l.remove(); computeAnchors(T); D.designs.forEach(function (d) { mkTex(d); if (!d.pos) place(d, d.zone); else refresh(d); }); });
+  }
+  function loadModel(T) {
+    var type = D.o.type, col = colorHex(D.o.color && D.o.color.name);
+    return new Promise(function (res) {
+      function done(root) {
+        var box = new THREE.Box3().setFromObject(root), sz = box.getSize(new THREE.Vector3()), sc = 1 / (sz.y || 1); root.scale.multiplyScalar(sc); box.setFromObject(root); var c = box.getCenter(new THREE.Vector3()); root.position.sub(c);
+        root.updateMatrixWorld(true); T.root = root; T.scene.add(root);
+        root.traverse(function (m) { if (m.isMesh) { m.material = new THREE.MeshStandardMaterial({ color: new THREE.Color(col), roughness: 0.92, metalness: 0, side: THREE.DoubleSide }); m.updateMatrixWorld(true); T.meshes.push(m); } });
+        res();
+      }
+      try { new THREE.GLTFLoader().load(CFG.MODELS[type] || CFG.MODELS.hoodie, function (g) { done(g.scene); }, undefined, function () { done(placeholder(type)); }); } catch (e) { done(placeholder(type)); }
+    });
+  }
+  function placeholder(type) {
+    var g = new THREE.Group(), M = function () { return new THREE.MeshStandardMaterial({ color: 0x777777 }); }, add = function (geo, x, y, z, rz, sx, sy, sz) { var m = new THREE.Mesh(geo, M()); m.position.set(x, y, z); m.rotation.z = rz || 0; m.scale.set(sx || 1, sy || 1, sz || 1); g.add(m); return m; };
+    if (type === 'pants') {
+      add(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 36, 4), 0, 0.42, 0, 0, 1, 1, 0.62);
+      add(new THREE.CylinderGeometry(0.1, 0.075, 0.88, 28, 14), -0.105, -0.0, 0, 0.02); add(new THREE.CylinderGeometry(0.1, 0.075, 0.88, 28, 14), 0.105, 0, 0, -0.02);
+    } else {
+      add(new THREE.CylinderGeometry(0.29, 0.31, 0.6, 44, 20), 0, -0.02, 0, 0, 1, 1, 0.62);
+      add(new THREE.SphereGeometry(0.17, 28, 18), 0, 0.33, -0.06, 0, 1.2, 0.9, 1);
+      add(new THREE.CylinderGeometry(0.078, 0.066, 0.52, 24, 12), -0.4, -0.04, 0, 0.16); add(new THREE.CylinderGeometry(0.078, 0.066, 0.52, 24, 12), 0.4, -0.04, 0, -0.16);
+    }
+    return g;
+  }
+  var ANCH = {
+    chest: [[0, 0.14, 6], [0, 0, -1]], back: [[0, 0.1, -6], [0, 0, 1]], sleeveR: [[-6, -0.06, 0], [1, 0, 0]], sleeveL: [[6, -0.06, 0], [-1, 0, 0]],
+    legR: [[-0.1, 0.0, 6], [0, 0, -1]], legL: [[0.1, 0.0, 6], [0, 0, -1]], backPocket: [[0.1, 0.36, -6], [0, 0, 1]]
+  };
+  var SIDE = { chest: 'f', back: 'b', backPocket: 'b', sleeveR: 'r', sleeveL: 'l', legR: 'f', legL: 'f' };
+  function computeAnchors(T) {
+    T.anch = {};
+    D.o.zones.forEach(function (z) {
+      var a = ANCH[z.code]; if (!a) return;
+      T.ray.set(new THREE.Vector3(a[0][0], a[0][1], a[0][2]), new THREE.Vector3(a[1][0], a[1][1], a[1][2]));
+      var hit = T.ray.intersectObjects(T.meshes, true)[0];
+      if (!hit) { T.ray.set(new THREE.Vector3(a[0][0], 0.1, a[0][2]), new THREE.Vector3(a[1][0], a[1][1], a[1][2])); hit = T.ray.intersectObjects(T.meshes, true)[0]; }
+      if (hit) T.anch[z.code] = { p: hit.point.clone(), n: hit.face.normal.clone().transformDirection(hit.object.matrixWorld) };
+      else T.anch[z.code] = { p: new THREE.Vector3(a[0][0] * 0.05, a[0][1], a[0][2] * 0.05), n: new THREE.Vector3(-a[1][0], -a[1][1], -a[1][2]) };
+    });
+  }
+  function nearestZone(p) { var T = D.three, best = '', bd = 1e9; Object.keys(T.anch).forEach(function (c) { var d = T.anch[c].p.distanceTo(p); if (d < bd) { bd = d; best = c; } }); return best; }
+  function place(d, code) {
+    if (D.three) { var a = D.three.anch[code]; if (a) { d.pos = a.p.clone(); d.nrm = a.n.clone(); d.rot = 0; refresh(d); } }
+    else if (d.el !== undefined) place2d(d);
+  }
+  function refresh(d) {
+    var T = D.three; if (!T) { if (D.o) refresh2d(d); return; }
+    if (!d.pos || !T.meshes.length || !d.tex) return;
+    if (d.mesh) { T.scene.remove(d.mesh); d.mesh.geometry.dispose(); d.mesh.material.dispose(); d.mesh = null; }
+    var wU = d.wcm / D.o.refCm, hU = d.hcm / D.o.refCm, n = d.nrm.clone().normalize();
+    var o = new THREE.Object3D(); o.position.copy(d.pos); o.up.set(0, 1, 0); if (Math.abs(n.y) > 0.97) o.up.set(0, 0, -1); o.lookAt(d.pos.clone().add(n));
+    o.rotateZ(d.rot || 0); var eu = new THREE.Euler().setFromQuaternion(o.quaternion);
+    var geos = [], parts = [];
+    T.meshes.forEach(function (m) { try { var g = new THREE.DecalGeometry(m, d.pos, eu, new THREE.Vector3(wU, hU, 0.3)); if (g.attributes.position.count) parts.push(g); } catch (e) {} });
+    if (!parts.length) return;
+    var geo = parts[0]; if (parts.length > 1) { geo = THREE.BufferGeometryUtils ? THREE.BufferGeometryUtils.mergeBufferGeometries(parts) : parts[0]; }
+    d.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: d.tex, transparent: true, roughness: 0.88, metalness: 0, polygonOffset: true, polygonOffsetFactor: -4, depthWrite: false, alphaTest: 0.01 }));
+    T.scene.add(d.mesh);
+  }
+  function camTo(side) {
+    var T = D.three; if (!T) return; var R = 2.7, v = { f: [0, 0.05, R], b: [0, 0.05, -R], r: [-R, 0.05, 0.01], l: [R, 0.05, 0.01] }[side] || [0, 0.05, R], to = new THREE.Vector3(v[0], v[1], v[2]), from = T.cam.position.clone(), t0 = performance.now();
+    (function step(t) { var k = Math.min(1, (t - t0) / 380), e = k * k * (3 - 2 * k); T.cam.position.lerpVectors(from, to, e); T.cam.lookAt(0, 0, 0); if (k < 1) requestAnimationFrame(step); })(t0);
+  }
+  function lookAtZone(code) { camTo(SIDE[code] || 'f'); }
+  function focusDesign() { var d = cur(); if (d) lookAtZone(d.zone); }
+
+  /* ---------- بديل 2D لو الجهاز مش بيدعم 3D ---------- */
+  function start2d() {
+    D.mode3d = false; var host = $$('hzpds'); if (!host) return;
+    var l = $$('hzpdl'); if (l) l.remove();
+    var src = D.o.product && D.o.product.main ? D.o.product.main : (D.o.color && D.o.color.imageId) || '';
+    host.innerHTML = '<div class="f2d"><div class="ph" id="hzpdph"></div></div><div class="hint">معاينة تقريبية على صورة المنتج. اسحب التصميم لتحريكه.</div>';
+    var ph = $$('hzpdph'); if (src && window.makeImg) { var im = makeImg(src, 700, ''); im.className = 'bg on'; ph.appendChild(im); im.load(); }
+    D.designs.forEach(mk2d); panel();
+  }
+  var Z2 = { chest: [0.5, 0.36], back: [0.5, 0.36], sleeveR: [0.16, 0.5], sleeveL: [0.84, 0.5], legR: [0.38, 0.55], legL: [0.62, 0.55], backPocket: [0.62, 0.3] };
+  function mk2d(d) {
+    var ph = $$('hzpdph'); if (!ph) return; if (d.el) d.el.remove();
+    var im = document.createElement('img'); im.className = 'dg'; im.alt = ''; im.src = d.cv.toDataURL('image/png'); d.el = im; ph.appendChild(im);
+    var drag = null; im.addEventListener('pointerdown', function (e) { D.sel = D.designs.indexOf(d); drag = { x: e.clientX, y: e.clientY, px: d.px, py: d.py }; im.setPointerCapture(e.pointerId); panel(); });
+    im.addEventListener('pointermove', function (e) { if (!drag) return; var r = ph.getBoundingClientRect(); d.px = Math.min(0.95, Math.max(0.05, drag.px + (e.clientX - drag.x) / r.width)); d.py = Math.min(0.95, Math.max(0.05, drag.py + (e.clientY - drag.y) / r.height)); refresh2d(d); });
+    im.addEventListener('pointerup', function () { drag = null; });
+    if (d.px == null) { var z = Z2[d.zone] || [0.5, 0.4]; d.px = z[0]; d.py = z[1]; }
+    refresh2d(d);
+  }
+  function place2d(d) { if (!d.el) { mk2d(d); return; } var z = Z2[d.zone] || [0.5, 0.4]; d.px = z[0]; d.py = z[1]; refresh2d(d); }
+  function refresh2d(d) { if (!d.el) { mk2d(d); return; } var ph = $$('hzpdph'); if (!ph) return; var wpx = ph.clientWidth * (d.wcm / D.o.refCm) * 0.8; d.el.style.width = wpx + 'px'; d.el.style.left = (d.px * 100) + '%'; d.el.style.top = (d.py * 100) + '%'; d.el.style.transform = 'translate(-50%,-50%) rotate(' + (d.rot || 0) + 'rad)'; d.el.classList.toggle('on', cur() === d); }
+
+  /* ---------- حفظ + رفع ---------- */
+  function b64(blob) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(',')[1]); }; fr.onerror = rej; fr.readAsDataURL(blob); }); }
+  function cvBlob(cv, mime, q) { return new Promise(function (res) { cv.toBlob(res, mime, q); }); }
+  function post(o) { return new Promise(function (res, rej) { var n = 0; (function go() { postApi(o, function (r) { if (r && r.ok) return res(r); var er = r && r.error; if (er === 'format' || er === 'big' || er === 'image' || er === 'chunk') return rej(r); if (n++ >= (er === 'rate' ? 3 : 2)) return rej(r || { error: 'net' }); setTimeout(go, er === 'rate' ? 5000 : 1200 * n); }, 90000); })(); }); }
+  async function upBlob(kind, blob, mime, prog) {
+    var data = await b64(blob), n = Math.ceil(data.length / CFG.CHUNK), id = rnd().replace(/[^a-z0-9]/gi, '').slice(0, 20), r;
+    for (var i = 0; i < n; i++) { r = await post({ type: 'dsn', kind: kind, mime: mime, up: id, idx: i, n: n, data: data.slice(i * CFG.CHUNK, (i + 1) * CFG.CHUNK) }); prog(Math.min(1, (i + 1) / n)); }
+    return r.ref;
+  }
+  function views() { var s = {}; D.designs.forEach(function (d) { s[SIDE[d.zone] || 'f'] = 1; }); return Object.keys(s).slice(0, 3); }
+  function snap(side) {
+    var T = D.three; if (!T) return null;
+    var R = 2.7, v = { f: [0, 0.05, R], b: [0, 0.05, -R], r: [-R, 0.05, 0.01], l: [R, 0.05, 0.01] }[side]; T.cam.position.set(v[0], v[1], v[2]); T.cam.lookAt(0, 0, 0); T.controls.update(); T.renderer.render(T.scene, T.cam);
+    var src = T.renderer.domElement, c = document.createElement('canvas'), k = Math.min(1, 1000 / src.width); c.width = Math.round(src.width * k); c.height = Math.round(src.height * k); var x = c.getContext('2d'); x.fillStyle = '#1c1812'; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height); return c;
+  }
+  function snap2d() { var ph = $$('hzpdph'); if (!ph) return null; var c = document.createElement('canvas'); c.width = 600; c.height = 800; var x = c.getContext('2d'); x.fillStyle = '#2a241b'; x.fillRect(0, 0, 600, 800); var bg = ph.querySelector('img.bg'); try { if (bg && bg.naturalWidth) x.drawImage(bg, 0, 0, 600, 800); } catch (e) {} D.designs.forEach(function (d) { var w = 600 * (d.wcm / D.o.refCm) * 0.8, h = w * d.asp; x.save(); x.translate(d.px * 600, d.py * 800); x.rotate(d.rot || 0); x.drawImage(d.cv, -w / 2, -h / 2, w, h); x.restore(); }); return c; }
+  async function save() {
+    if (D.saving) return; var m = $$('hzpdm'), bar = $$('hzpdb'), ok = $$('hzpdok');
+    if (!D.designs.length) { m.textContent = 'ارفع تصميم واحد على الأقل.'; return; }
+    D.saving = true; ok.disabled = true; bar.style.display = 'block'; m.textContent = 'جاري رفع التصميم...';
+    var tot = D.designs.length * 2 + 3, done = 0, setP = function (f) { bar.firstChild.style.width = Math.round((done + (f || 0)) / tot * 100) + '%'; };
+    try {
+      var pvs = [], th = '';
+      if (D.three) { var sd = views(); for (var vi = 0; vi < sd.length; vi++) { var c = snap(sd[vi]); if (c) pvs.push(c); } }
+      else { var c2 = snap2d(); if (c2) pvs.push(c2); }
+      if (!pvs.length) throw { error: 'snap' };
+      for (var i = 0; i < D.designs.length; i++) {
+        var d = D.designs[i];
+        if (!d.ref) { d.ref = await upBlob('orig', d.file, d.mime, setP); }
+        done++; setP();
+        if (d.nbKind && (d.dirty || !d.nbRef)) { var nbBlob = await cvBlob(d.cv, 'image/png'); d.nbRef = await upBlob('nobg', nbBlob, 'image/png', setP); d.dirty = false; }
+        else if (!d.nbKind) d.nbRef = '';
+        done++; setP();
+      }
+      var pv = [];
+      for (var k = 0; k < pvs.length; k++) { var bl = await cvBlob(pvs[k], 'image/jpeg', 0.9); pv.push(await upBlob('prev', bl, 'image/jpeg', setP)); }
+      done += 3; setP();
+      var t = document.createElement('canvas'); t.width = 96; t.height = Math.round(96 * pvs[0].height / pvs[0].width); t.getContext('2d').drawImage(pvs[0], 0, 0, t.width, t.height); th = t.toDataURL('image/jpeg', 0.7);
+      var cx = { d: D.designs.map(function (d) { return { ref: d.ref, nb: d.nbRef || '', z: d.zone, w: Math.round(d.wcm * 10) / 10, h: Math.round(d.hcm * 10) / 10 }; }), pv: pv, note: (D.note != null ? D.note : (D.o.existing && D.o.existing.note) || '').trim() };
+      D.designs.forEach(function (d) { d.mesh = null; });
+      var res = { cx: cx, th: th, state: { designs: D.designs } }, cb = D.o.onSave; D.saving = false; close(); cb(res);
+    } catch (e) {
+      D.saving = false; ok.disabled = false; bar.style.display = 'none';
+      var er = e && e.error; m.textContent = er === 'format' ? 'صيغة الملف مش مدعومة. المدعوم: PNG أو JPG أو WebP.' : er === 'big' ? 'حجم الملف أكبر من المسموح.' : er === 'rate' ? 'الموقع مشغول لحظات، استنى نص دقيقة وجرب تاني.' : 'مشكلة في رفع التصميم. اتأكد من النت وجرب تاني.';
+    }
+  }
+  window.__hzDesigner = { open: open, _d: function () { return D; } };
+  setTimeout(function () { if ('requestIdleCallback' in window) requestIdleCallback(function () {}); }, 0);
 })();
 
 (function () {
@@ -2759,3 +3358,4 @@ fetchData();
 </script>
 </body>
 </html>
+جارٍ عرض index.html.
