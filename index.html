@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -49,18 +48,22 @@ rel="stylesheet">
 #mqplus.dim,.qty button.dim{opacity:.3}
 .imgretry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.7);border:1px solid rgba(216,180,114,.45);color:var(--gold-2);border-radius:50%;cursor:pointer;padding:0;z-index:3}
 .imgwrap,.pic{background-image:linear-gradient(100deg,rgba(255,255,255,.02) 20%,rgba(255,255,255,.07) 40%,rgba(255,255,255,.02) 60%);background-size:200% 100%;animation:hzsk 1.4s linear infinite}
-@keyframes hzsk{from{background-position:200% 0}to{background-position:-200% 0}}
+img[data-hzi]:not([data-ok="1"]){visibility:hidden}@keyframes hzsk{from{background-position:200% 0}to{background-position:-200% 0}}
 #fpanel #search{padding:0 18px;text-align:right;letter-spacing:0}
 #search::placeholder{opacity:1;letter-spacing:0}
 #cscroll{gap:10px}
 .csum{gap:4px}
 </style>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="shortcut icon" href="favicon.ico">
 <meta name="theme-color" content="#1c1812">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="HoodZilla Store">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
 <header class="hero">
@@ -91,9 +94,7 @@ stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/
 <div class="fhead"><span>بحث وتصفية</span><button class="fx" id="fx" type="button" aria-label="إغلاق">&times;</button></div>
 <div class="fbody">
 <div class="fl">بحث</div>
-<input id="search" type="search" placeholder="&#x627;&#x628;&#x62D;&#x62B;
-&#x628;&#x627;&#x644;&#x627;&#x633;&#x645; &#x623;&#x648;
-&#x627;&#x644;&#x643;&#x648;&#x62F;...">
+<input id="search" type="search" placeholder="ابحث بالاسم أو الكود...">
 <div class="fl">الحالة</div>
 <div class="chips">
 <button class="chip active" data-f="all">الكل</button>
@@ -206,15 +207,26 @@ autocorrect="off" spellcheck="false">
 </div>
 <script>
 
-var API_URL = 'https://script.google.com/macros/s/AKfycbw5pl33_CMKXgk694ZYlbfHe9Wd6glaslerrY3K1JZQ1qp6qgvLcYiSdjmHsfDVkarwiA/exec';
+(function () {
+  var seen = {}, cnt = 0, T0 = Date.now();
+  window.hzReport = function (where, msg, extra) {
+    try {
+      var k = where + '|' + String(msg).slice(0, 80); if (seen[k] || cnt >= 12) return; seen[k] = 1; cnt++;
+      fetch(API_URL, { method: 'POST', mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ type: 'cerr', where: String(where).slice(0, 60), msg: String(msg).slice(0, 300), ua: navigator.userAgent, url: location.href.slice(0, 120), extra: extra || (navigator.onLine === false ? 'offline' : '') }) }).catch(function () {});
+    } catch (e) {}
+  };
+  window.addEventListener('error', function (e) { if (e && e.message && !/ResizeObserver|Script error/i.test(e.message)) window.hzReport('js', e.message + ' @' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '')); });
+  window.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; window.hzReport('promise', r && r.message ? r.message : String(r)); });
+})();
+var API_URL = 'https://script.google.com/macros/s/AKfycbye_Y6ILEWrITBKub1aGYquyj_jEOZLsXRz5GFkMS5UKZRnRqjPzLiW0koiG3W8zmh3/exec';
 function postApi(obj, cb, ms) {
   var done = false, ctl = window.AbortController ? new AbortController() : null;
-  var t = setTimeout(function () { if (done) return; done = true; try { if (ctl) ctl.abort(); } catch (e) {} cb(null); }, ms || 30000);
+  var t = setTimeout(function () { if (done) return; done = true; try { if (ctl) ctl.abort(); } catch (e) {} if (obj && obj.type !== 'cerr') window.hzReport('api-timeout', obj.type + ' بعد ' + Math.round((ms || 30000) / 1000) + ' ث'); cb(null); }, ms || 30000);
   try {
     fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(obj), signal: ctl ? ctl.signal : undefined })
       .then(function (r) { return r.json(); })
       .then(function (j) { if (done) return; done = true; clearTimeout(t); cb(j); })
-      .catch(function () { if (done) return; done = true; clearTimeout(t); cb(null); });
+      .catch(function (er) { if (done) return; done = true; clearTimeout(t); if (obj && obj.type !== 'cerr') window.hzReport('api-fail', obj.type + ': ' + (er && er.message ? er.message : 'network')); cb(null); });
   } catch (e) { if (!done) { done = true; clearTimeout(t); cb(null); } }
 }
 var BRAND = 'HoodZilla';
@@ -341,7 +353,8 @@ t.className = 'otile' + (cls ? ' ' + cls : '');
 var a = document.createElement('div'); a.className = 'otitle'; a.textContent = title;
 var b = document.createElement('div'); b.className = 'ooff'; b.textContent = big;
 var c = document.createElement('div'); c.className = 'osub'; c.textContent = sub;
-t.appendChild(a); t.appendChild(b); t.appendChild(c);
+var m = document.createElement('div'); m.className = 'omid'; m.appendChild(a); m.appendChild(b);
+t.appendChild(m); t.appendChild(c);
 box.appendChild(t);
 }
 var d2 = offAmount(2, BUNDLE2), d3 = offAmount(3, BUNDLE3), d4 = offAmount(4,
@@ -467,32 +480,27 @@ return x.replace(/\u0001/g, '.').replace(/\u0002/g, ',').trim();
 /* ---------- Images (natural sizes, several sources tried in order) ---------- */
 /* ---------- Images: CDN proxy first, then Google sources; global queue + timeouts + retries ---------- */
 var IMG_CFG = {
-  PROXY: true,                 // true = استخدم wsrv.nl كأول مصدر (أسرع وأثبت)، false = جوجل مباشرة
-  PROXY_URL: 'https://wsrv.nl/?url=lh3.googleusercontent.com/d/{ID}&w={W}&output=webp&q=82&we',
   MAX_PARALLEL: 6,             // أقصى عدد صور بتتحمل مع بعض
   TIMEOUT_MS: 11000,           // مهلة أول جولة (بتزيد مع كل جولة للنت البطيء)
-  RETRIES: 6,                  // جولات إعادة المحاولة الصامتة (بتتباعد تدريجياً) طول ما الصورة على الشاشة
+  RETRIES: 3,                  // جولات إعادة المحاولة الصامتة (بتتباعد تدريجياً) طول ما الصورة على الشاشة
   RETRY_BASE_MS: 1800
 };
 function imgSources(id, w) {
   w = Math.min(w, 900);
-  var a = [];
-  if (IMG_CFG.PROXY) a.push(IMG_CFG.PROXY_URL.replace('{ID}', id).replace('{W}', w));
-  a.push('https://lh3.googleusercontent.com/d/' + id + '=w' + w);
-  a.push('https://drive.google.com/thumbnail?id=' + id + '&sz=w' + w);
-  a.push('https://drive.google.com/uc?export=view&id=' + id);
+  var a = ['https://lh3.googleusercontent.com/d/' + id + '=w' + w, 'https://drive.google.com/thumbnail?id=' + id + '&sz=w' + w];
+  if (imgPref[id] === 1) a.reverse();           // لو المصدر التاني هو اللي اشتغل قبل كده نبدأ بيه
   return a;
 }
-var imgQ = [], imgBusy = 0;
+var imgQ = [], imgBusy = 0, imgPref = {};
 function imgPump() {
   while (imgBusy < IMG_CFG.MAX_PARALLEL && imgQ.length) { var t = imgQ.shift(); if (t.go) { imgBusy++; t.go(); } }
 }
 function makeImg(id, w, alt) {
 var img = document.createElement('img');
-img.alt = '';   // الـ alt بيتحط بعد التحميل بس (عشان أيقونة الصورة المكسورة واسم الموديل ميظهروش)
+img.setAttribute('data-hzi', '1'); img.alt = '';   // الـ alt بيتحط بعد التحميل بس (عشان أيقونة الصورة المكسورة واسم الموديل ميظهروش)
 img.referrerPolicy = 'no-referrer';
 img.decoding = 'async';
-var srcs = imgSources(id, w), n = 0, started = false, round = 0, timer = null, slot = false, tk = null, dead = false;
+var srcs = imgSources(id, w), n = 0, started = false, round = 0, timer = null, slot = false, tk = null, dead = false, gaveUp = 0, lastAgain = 0;
 function free() { if (slot) { slot = false; imgBusy--; imgPump(); } clearTimeout(timer); }
 function fail() {
   free();
@@ -515,14 +523,16 @@ function giveUp() {
     btn.addEventListener('click', function (e) { e.stopPropagation(); again(); });
     par.appendChild(btn);
   }
-  setTimeout(function () { if (!dead && document.body.contains(img) && img.dataset.ok !== '1') again(); }, 20000);
+  try { window.hzReport && window.hzReport('image', 'الصورة فشلت من كل المصادر: ' + id); } catch (e) {}
+  if (++gaveUp <= 3) setTimeout(function () { if (!dead && document.body.contains(img) && img.dataset.ok !== '1') again(); }, 30000 * gaveUp);
 }
 function again() {
   var par = img.parentNode, b = par && par.querySelector('.imgretry'); if (b) b.remove();
   round = 0; n = 0; enqueue(true);
 }
-window.addEventListener('online', function () { if (img.dataset.ok !== '1' && started && document.body.contains(img)) again(); });
-document.addEventListener('visibilitychange', function () { if (!document.hidden && img.dataset.ok !== '1' && started && document.body.contains(img)) again(); });
+function nudge() { if (img.dataset.ok !== '1' && started && document.body.contains(img) && Date.now() - lastAgain > 15000) { lastAgain = Date.now(); again(); } }
+window.addEventListener('online', nudge);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) nudge(); });
 function enqueue(front) {
   if (tk) tk.go = null;
   tk = { go: function () {
@@ -534,7 +544,7 @@ function enqueue(front) {
   if (front) imgQ.unshift(tk); else imgQ.push(tk);
   imgPump();
 }
-img.onload = function () { free(); img.dataset.ok = '1'; img.alt = alt || ''; var par = img.parentNode, b = par && par.querySelector('.imgretry'); if (b) b.remove(); };
+img.onload = function () { free(); if (n === 1) imgPref[id] = 1; img.dataset.ok = '1'; img.alt = alt || ''; var par = img.parentNode, b = par && par.querySelector('.imgretry'); if (b) b.remove(); };
 img.onerror = function () { fail(); };
 img.load = function () {
   if (started) return;
@@ -597,6 +607,8 @@ grid.innerHTML = '';
 $('msg').textContent = '';
 for (var i = 0; i < 8; i++) grid.appendChild(el('div', 'skel'));
 }
+function szLow(z) { return z.inStock && z.max <= (+(window.__hzSET && window.__hzSET['حد_آخر_القطع']) || 3); }
+function statOk(st, inS, low) { return st === 'all' || (st === 'in' && inS) || (st === 'out' && !inS) || (st === 'low' && low); }
 function getList() {
 var q = query.toLowerCase();
 var qc = q.replace(/[\s\-]/g, '');
@@ -607,8 +619,9 @@ if (filter === 'out' && p.inStock) return false;
 if (filter === 'low' && !p.low) return false;
 if (nSz || nCl) {
 var okc = p.colors.some(function (c) {
-if (!c.inStock || (nCl && !selColors[c.name])) return false;
-return !nSz || c.sizes.some(function (z) { return z.inStock && selSizes[z.size]; });
+if (nCl && !selColors[c.name]) return false;
+if (!nSz) return statOk(filter, c.inStock, c.sizes.some(szLow));
+return c.sizes.some(function (z) { return selSizes[z.size] && statOk(filter, z.inStock, szLow(z)); });
 });
 if (!okc) return false;
 }
@@ -623,6 +636,7 @@ if (sortMode === 'desc') list.sort(function (a, b) { return cardPrice(b).value -
 cardPrice(a).value; });
 return list;
 }
+
 function render() {
 buildFilterChips();
 var list = getList();
@@ -691,9 +705,22 @@ if (cp.differ) pr.appendChild(el('span', 'from', '\u064a\u0628\u062f\u0623 \u064
 pr.appendChild(document.createTextNode(cp.text));
 pr.appendChild(el('small', '', CURRENCY));
 } else {
-pr.textContent = '\u0646\u0641\u0630 \u0645\u0646 \u0627\u0644\u0645\u062e\u0632\u0648\u0646';
+var cp0 = cardPrice(p);
+if (cp0.differ) pr.appendChild(el('span', 'from', '\u064a\u0628\u062f\u0623 \u0645\u0646'));
+pr.appendChild(document.createTextNode(cp0.text));
+pr.appendChild(el('small', '', CURRENCY));
+pr.className += ' dimp';
 }
-info.appendChild(pr);
+var prow = el('div', 'prow');
+prow.appendChild(pr);
+if (window.__hzHasOut && window.__hzHasOut(p)) {
+var ab = el('button', 'askb', '');
+ab.type = 'button';
+ab.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span>\u0627\u0633\u0623\u0644 \u0639\u0646 \u062a\u0648\u0641\u0631\u0647</span>';
+(function (pp, bb, cc) { bb.addEventListener('click', function (e) { e.stopPropagation(); window.__hzAsk && window.__hzAsk(pp, cc, bb); }); })(p, ab, card);
+prow.appendChild(ab);
+}
+info.appendChild(prow);
 card.appendChild(info);
 card.addEventListener('click', function () { openModal(p); });
 grid.appendChild(card);
@@ -973,10 +1000,12 @@ CURRENCY;
 st.textContent = '';
 st.className = 'status';
 } else {
-pr.textContent = '';
+pr.textContent = (!p.inStock) ? (function () { var c0 = cardPrice(p); return (c0.differ ? '\u064a\u0628\u062f\u0623 \u0645\u0646 ' : '') + c0.text + ' ' + CURRENCY; })() : '';
 st.textContent = '\u0646\u0641\u0630 \u0645\u0646 \u0627\u0644\u0645\u062e\u0632\u0648\u0646';
 st.className = 'status no';
 }
+pr.className = 'price' + (!p.inStock ? ' dimp' : '');
+$('moffer').className = ($('moffer').className || '').replace(/\bdimo\b/g, '').trim() + (!p.inStock ? ' dimo' : '');
 if (curColor && curSize) {
 add.className = 'btn add';
 add.textContent = T_ADD;
@@ -1413,11 +1442,11 @@ if (i > -1) return i;
 var n = parseFloat(v);
 return isNaN(n) ? 100 : 200 + n;
 }
-function fillChips(id, arr, sel) {
+function fillChips(id, arr, sel, outs) {
 var box = $(id);
 box.innerHTML = '';
 arr.forEach(function (v) {
-var b = el('button', 'fc' + (sel[v] ? ' on' : ''), v);
+var b = el('button', 'fc' + (sel[v] ? ' on' : '') + (outs && outs[v] ? ' dimc' : ''), v);
 b.type = 'button';
 b.addEventListener('click', function () {
 if (sel[v]) { delete sel[v]; b.classList.remove('on'); } else { sel[v] = 1; b.classList.add('on'); }
@@ -1427,20 +1456,23 @@ box.appendChild(b);
 });
 }
 function buildFilterChips() {
-var sz = {}, cl = {};
+var sz = {}, cl = {}, szOut = {}, clOut = {};
 ALL.forEach(function (p) {
 p.colors.forEach(function (c) {
-if (c.name && c.inStock) cl[c.name] = 1;
-c.sizes.forEach(function (z) { if (z.size && z.inStock) sz[z.size] = 1; });
+if (c.name) { if (statOk(filter, c.inStock, c.sizes.some(szLow))) { cl[c.name] = 1; if (c.inStock) clOut[c.name] = clOut[c.name] || 0; } if (c.inStock) clOut[c.name] = 2; }
+c.sizes.forEach(function (z) { if (z.size && statOk(filter, z.inStock, szLow(z))) { sz[z.size] = 1; } if (z.size && z.inStock) szOut[z.size] = 2; });
 });
 });
 var sizes = Object.keys(sz).sort(function (a, b) { return sizeRank(a) - sizeRank(b); });
 var colors = Object.keys(cl);
-var sig = sizes.join('|') + '#' + colors.join('|');
+var o1 = {}, o2 = {};
+sizes.forEach(function (k) { if (szOut[k] !== 2) o1[k] = 1; });
+colors.forEach(function (k) { if (clOut[k] !== 2) o2[k] = 1; });
+var sig = filter + '#' + sizes.map(function (k) { return k + (o1[k] ? '!' : ''); }).join('|') + '#' + colors.map(function (k) { return k + (o2[k] ? '!' : ''); }).join('|');
 if (sig === chipSig) return;
 chipSig = sig;
-fillChips('fsizes', sizes, selSizes);
-fillChips('fcolors', colors, selColors);
+fillChips('fsizes', sizes, selSizes, o1);
+fillChips('fcolors', colors, selColors, o2);
 $('fsizesBox').style.display = sizes.length ? '' : 'none';
 $('fcolorsBox').style.display = colors.length ? '' : 'none';
 }
@@ -1591,6 +1623,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   /* ===================== إعدادات الموقع (غيّر من هنا بسهولة) ===================== */
   var HZ = {
     UPLOAD_MAX_PX: 1400,          // أقصى أبعاد صورة التحويل بعد الضغط
+    UPLOAD_TIMEOUT: 45000,        // مهلة رفع صورة التحويل (مللي ثانية)
     ORDER_TIMEOUT: 45000,         // مهلة انتظار رد تسجيل الطلب (مللي ثانية)
     DONE_KEEP_HOURS: 6,           // شاشة التأكيد بتفضل متخزنة كام ساعة
     OPEN_WA_DELAY: 900,           // على الموبايل: تأخير بسيط قبل فتح واتساب (مللي ثانية)
@@ -1666,7 +1699,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   // رسوم القطع الخاصة (مقاس/طباعة) من الإعدادات
   window.__hzFee = function (cx) {
     var f = 0; if (!cx) return 0;
-    if (cx.sz && on('المقاس_الخاص_مفعل', true)) f += N(SET['سعر_المقاس_الخاص']);
+    if (cx.sz && on('المقاس_الخاص_مفعل', true)) { var sp = window.__hzSSP && window.__hzSSP[cx.sz.mt]; f += sp != null ? N(sp) : N(SET['سعر_المقاس_الخاص']); }
     if (cx.pr && on('الطباعة_الخاصة_مفعلة', true)) f += window.__hzPrintFee ? window.__hzPrintFee(cx.pr) : N(SET['سعر_الطباعة_الخاصة']);
     return f;
   };
@@ -1697,7 +1730,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     var plus = cart.map(function (i) { return i; }).concat([{ code: cheap.code, price: cheap.price, qty: 1, fee: 0 }]), p1 = calcFor(plus, true);
     var s0 = p0.discount + (p0.n >= base ? shipBase : 0), s1 = p1.discount + (p1.n >= base ? shipBase : 0);
     if (s1 <= s0) return '';
-    return 'زوّد قطعة وهتوفر ' + fmt(s1) + ' ' + CURRENCY + '  (إجمالي توفيرك يبقى ' + fmt(s1) + ' ' + CURRENCY + ')';
+    return 'زوّد قطعة وهتوفر ' + fmt(s1 - s0) + ' ' + CURRENCY + ' · إجمالي توفيرك ' + fmt(s1) + ' ' + CURRENCY;
   }
 
   function formValid() {
@@ -1705,12 +1738,12 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (!CUST.name || !nameValid(CUST.name) || !/^\d{2}$/.test(CUST.age || '') || +CUST.age < 10 || !p.test(CUST.phone || '') || (CUST.phone2 && !p.test(CUST.phone2)) || !CUST.gov || !CUST.city || !z || !z.ok || !CUST.address || CUST.address.length < 6) return false;
     return cart.length > 0;
   }
-  function payValid() { if (!payNeeded() || !proofReq()) return true; return UP.state === 'up' || UP.state === 'done'; }
+  function payValid() { if (!payNeeded() || !proofReq()) return true; return UP.state === 'up' || UP.state === 'done' || (UP.state === 'fail' && UP.skip === true); }
   function valid() { return formValid() && payValid(); }
 
   function fillGov() {
     var g = $$('hzg'); if (!g || !GEO) return;
-    g.innerHTML = '<option value="">المحافظة</option>';
+    g.innerHTML = '<option value="">اختار المحافظة</option>';
     Object.keys(GEO).forEach(function (k) {
       var ok = GEO[k].some(function (c) { return c.ok; }), o = el('option', '', k + (ok ? '' : ' (غير متاح)')); o.value = k; if (!ok) o.disabled = true; g.appendChild(o);
     });
@@ -1718,18 +1751,24 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   }
   function fillCity() {
     var c = $$('hzc'); if (!c) return;
-    c.innerHTML = '<option value="">المدينة / المركز</option>';
+    c.innerHTML = '<option value="">اختار المدينة</option>';
     (GEO && GEO[CUST.gov] || []).forEach(function (x) { var o = el('option', '', x.c + (x.ok ? '' : ' (غير متاح)')); o.value = x.c; if (!x.ok) o.disabled = true; c.appendChild(o); });
     c.value = CUST.city || '';
   }
 
   // ---- عناوين محفوظة (من حساب العميل) ----
+  var NEWADDR = false;
   function addrBox() {
     var b = $$('hzsvb'); if (!b) return;
     var a = PROF && PROF.addrs || [], h = '';
+    var si = -1; a.forEach(function (x, i) { if (si < 0 && x.gov === CUST.gov && x.city === CUST.city && x.a === CUST.address) si = i; });
+    var savedMode = a.length && si >= 0 && !NEWADDR;
     if (a.length) {
       h += '<select id="hzsvs"><option value="">اختار عنوان محفوظ</option>' + a.map(function (x, i) { return '<option value="' + i + '">' + (x.l || 'عنوان') + ' - ' + x.city + '</option>'; }).join('') + '<option value="new">استخدم عنوان تاني</option></select>';
     }
+    var hide = savedMode ? 'none' : '';
+    ['hzg', 'hzc'].forEach(function (i) { if ($$(i)) $$(i).parentNode.style.display = hide; });
+    if ($$('hzad')) $$('hzad').style.display = hide; if ($$('hzw')) $$('hzw').style.display = hide;
     var same = a.some(function (x) { return x.gov === CUST.gov && x.city === CUST.city && x.a === CUST.address; });
     var b2 = $$('hzsvb2'); if (!b2 && $$('hzad')) { b2 = document.createElement('div'); b2.id = 'hzsvb2'; b2.className = 'hzsv'; $$('hzad').parentNode.insertBefore(b2, $$('hzad').nextSibling); }
     var sv = '';
@@ -1737,11 +1776,13 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (b2) b2.innerHTML = sv;
     b.innerHTML = h;
     var s = $$('hzsvs');
+    if (s) s.value = savedMode ? String(si) : (NEWADDR ? 'new' : '');
     if (s) s.onchange = function () {
+      NEWADDR = this.value === 'new';
       if (this.value === 'new') { CUST.gov = ''; CUST.city = ''; CUST.address = ''; }
       else if (this.value !== '') { var x = a[+this.value]; CUST.gov = x.gov; CUST.city = x.city; CUST.address = x.a; }
       else return;
-      save(); $$('hzad').value = CUST.address || ''; fillGov(); renderCart();
+      save(); $$('hzad').value = CUST.address || ''; fillGov(); renderCart(); addrBox();
     };
     var g = $$('hzsvg');
     if (g) g.onclick = function () { var l = ($$('hzsvl').value || 'عنوان').trim(); g.disabled = true; window.__hzSaveAddr({ l: l, gov: CUST.gov, city: CUST.city, a: CUST.address }, function (ok) { showToast(ok ? 'اتحفظ العنوان' : 'معرفناش نحفظه، جرب تاني'); if (ok) addrBox(); else g.disabled = false; }); };
@@ -1808,21 +1849,22 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     postApi({ type: 'proof', img: UP.b64, mime: 'image/jpeg', expected: need }, function (r) {
       if (UP.b64 !== mine) return;                                // اتبدّلت بصورة تانية
       if (r && r.ok) { PF = { ref: r.ref, verdict: r.verdict, amount: N(r.amount) }; UP.state = 'done'; savePF(); }
-      else UP.state = 'fail';
+      else { UP.state = 'fail'; UP.fails = (UP.fails || 0) + 1; try { window.hzReport('proof-upload', (r && r.error ? 'رد السيرفر: ' + r.error : 'مفيش رد (مهلة أو شبكة)') + ' | حجم الصورة ' + Math.round(UP.b64.length / 1024) + 'KB'); } catch (e) {} }
       renderCart();
       if (UP.state === 'done' && pendingSend) { pendingSend = false; submit(); }
-      else if (UP.state === 'fail' && pendingSend) { pendingSend = false; sending = false; closePop(); upd(); }
-    }, 90000);
+      else if (UP.state === 'fail' && pendingSend) { pendingSend = false; sending = false; closePop(); upd(); showToast('رفع الصورة فشل. جرب تاني أو كمّل بدون صورة'); }
+    }, HZ.UPLOAD_TIMEOUT || 45000);
   }
   function clearProof() { PF = null; savePF(); UP = { state: 'idle', thumb: '', b64: '' }; pendingSend = false; renderCart(); }
   function renderProof() {
     var b = $$('hzprf'); if (!b) return;
     if (UP.state === 'idle') { b.innerHTML = '<button type="button" class="btn add" id="hzpick">ارفع صورة التحويل (سكرين شوت)</button>'; $$('hzpick').onclick = function () { $$('hzfile').click(); }; return; }
     var th = UP.thumb ? '<img alt="" src="' + UP.thumb + '">' : '<div class="ph"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></div>';
-    var tx = UP.state === 'up' ? '<span class="hzspin"></span>' + HZ.T_UPLOADING : (UP.state === 'fail' ? '<a href="#" id="hzretry" style="color:#ffb3a6">' + HZ.T_UPFAIL + '</a>' : HZ.T_UPLOADED);
+    var tx = UP.state === 'up' ? '<span class="hzspin"></span>' + HZ.T_UPLOADING : (UP.state === 'fail' ? (UP.skip ? 'هنكمّل الطلب من غير صورة، وهنراجع التحويل معاك على واتساب. <a href="#" id="hzretry" style="color:#f3dca6">ارفع الصورة</a>' : '<a href="#" id="hzretry" style="color:#ffb3a6">' + HZ.T_UPFAIL + '</a><br><a href="#" id="hzskip" style="color:#f3dca6;font-size:12px">كمّل الطلب من غير صورة (آخر حل)</a>') : HZ.T_UPLOADED);
     b.innerHTML = '<div class="hzprf">' + th + '<div class="tx">' + tx + '</div><div class="ac"><button type="button" id="hzrep">استبدال</button><button type="button" class="rm" id="hzrm">حذف</button></div></div>';
     $$('hzrep').onclick = function () { $$('hzfile').click(); }; $$('hzrm').onclick = clearProof;
-    var rt = $$('hzretry'); if (rt) rt.onclick = function (e) { e.preventDefault(); if (UP.b64) doUpload(); else clearProof(); };
+    var rt = $$('hzretry'); if (rt) rt.onclick = function (e) { e.preventDefault(); UP.skip = false; if (UP.b64) doUpload(); else clearProof(); };
+    var sk = $$('hzskip'); if (sk) sk.onclick = function (e) { e.preventDefault(); UP.skip = true; renderProof(); upd(); };
   }
   function buildPay(pr) {
     var h = '', head = '';
@@ -1989,11 +2031,11 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (sending && !pendingSend) return;
     if (!valid()) return;
     if (UP.state === 'up') { sending = true; pendingSend = true; upd(); return; }           // استنى لحد ما الصورة تخلص رفع
-    if (UP.state === 'fail' && payNeeded() && proofReq()) { showToast('الصورة محتاجة ترفع تاني. اضغط على إعادة المحاولة'); return; }
+    if (UP.state === 'fail' && !UP.skip && payNeeded() && proofReq()) { showToast('الصورة محتاجة ترفع تاني. اضغط على إعادة المحاولة'); return; }
     sending = true; OID = OID || newOid(); upd();
     var pr = calcPricing(), snap = cart.map(function (i) { return { name: i.name, color: i.color, size: i.size, qty: i.qty, code: i.code, cx: i.cx }; });
     var payload = {
-      type: 'order', oid: OID, hp: ($$('hzhp') || {}).value || '', ft: Date.now() - T0, cf: CF, proofRef: PF && payNeeded() ? PF.ref : '', fb: fbData(),
+      type: 'order', oid: OID, hp: ($$('hzhp') || {}).value || '', ft: Date.now() - T0, cf: CF, proofRef: PF && payNeeded() ? PF.ref : '', noProof: !!(UP.skip && payNeeded() && proofReq() && !(PF && PF.ref)), fb: fbData(),
       items: cart.map(function (i) { return { code: i.code, color: i.color, size: i.size, qty: i.qty, cx: i.cx ? JSON.parse(JSON.stringify(i.cx, function (k, v) { return k === 'th' ? undefined : v; })) : undefined }; }),
       customer: { name: CUST.name, age: CUST.age, phone: CUST.phone, phone2: CUST.phone2 || '', gov: CUST.gov, city: CUST.city, address: CUST.address, notes: CUST.notes || '' },
       promo: promoApplied ? promoApplied.code : '', pay: { method: PAY, amount: needAmt(pr.total, pr.dep) }, src: (location.search.match(/utm_source=([^&]+)/) || [])[1] || ''
@@ -2214,6 +2256,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   }
   window.__hzOpenSizes = function () { openSizes(); };
   function openSizes() {
+    if (window.__hzSizeUI) return window.__hzSizeUI();
     var ps = psizes(), rows = SZ.slice().sort(function (a, b) { return sizeRank(a.s) - sizeRank(b.s); });
     var h = '<h3><span>جدول المقاسات</span><button class="hzx" type="button">×</button></h3><table class="hzt2"><tr><th>المقاس</th><th>العرض (سم)</th><th>الطول (سم)</th></tr>' + rows.map(function (r) { return '<tr class="' + (ps.indexOf(r.s) < 0 ? 'dim' : '') + '"><td>' + r.s + '</td><td>' + r.w + '</td><td>' + r.l + '</td></tr>'; }).join('') + '</table><p>القياسات بالسنتيمتر والهودي مفرود. الموديلات أوفرسايز: لو بتفضّل لبس أقل اتساعاً اختار مقاس أصغر.</p>';
     if (rows.some(function (r) { return N(r.mw) > 0 && N(r.mh) > 0; })) h += '<h3 style="margin-top:14px"><span>اعرف مقاسك</span></h3><div class="hzf2"><div><input id="hzsa" inputmode="numeric" placeholder="السن"><span>سنة</span></div><div><input id="hzsw" inputmode="numeric" placeholder="الوزن"><span>كجم</span></div><div><input id="hzsh" inputmode="numeric" placeholder="الطول"><span>سم</span></div></div><div class="hzres" id="hzres"><div class="hzbig" id="hzbig"></div><div id="hzsr" class="hzm"></div></div><button class="btn add" id="hzsb" type="button" style="display:none">اختيار المقاس</button>';
@@ -2237,6 +2280,8 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   function openPol() {
     var o = ov('hzpo'), s = o.querySelector('.hzs'); s.innerHTML = '<h3>سياسة الشغل والاسترجاع</h3>';
     POL.forEach(function (p) { var d = el('details'), u = el('summary', '', p.t), t = el('p', '', p.x); d.appendChild(u); d.appendChild(t); s.appendChild(d); });
+    var ct = String((window.__hzSET || {})['نص_ختام_السياسة'] || '').trim(); if (ct) { var cp = el('p', 'hzthx', ct); s.appendChild(cp); }
+    var xb = el('button', 'btn hzpclose', 'إغلاق'); xb.type = 'button'; xb.onclick = function () { o.classList.remove('open'); }; s.appendChild(xb);
     o.classList.add('open');
   }
   var ft = $$('foot'), fb = el('button', 'hzlink', 'Website Policy'); fb.id = 'hzpl2'; fb.type = 'button'; fb.style.display = 'block'; fb.style.margin = '8px auto 0'; fb.addEventListener('click', openPol); ft.appendChild(fb);
@@ -2293,7 +2338,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   function E(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function typ() { return (curProduct && curProduct.mt) || 'hoodie'; }
   var _ad = applyData;
-  applyData = function (d, f) { SZT = d.sizes || []; SPD = { psz: d.psz || [], pz: d.pz || [], pt: d.pt || [] }; SXX = d.settings || {}; _ad(d, f); };
+  applyData = function (d, f) { SZT = d.sizes || []; SPD = { psz: d.psz || [], pz: d.pz || [], pt: d.pt || [] }; SXX = d.settings || {}; window.__hzSSP = d.ssp || {}; _ad(d, f); };
 
   /* ---- السعر ---- */
   function ptRow(n) { var r = null; SPD.pt.forEach(function (x) { if (x.n === n) r = x; }); return r; }
@@ -2306,7 +2351,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   };
   window.__hzCx = function () { var o = {}; if (CX.sz) o.sz = CX.sz; if (CX.pr) o.pr = CX.pr; return o.sz || o.pr ? JSON.parse(JSON.stringify(o)) : null; };
   window.__hzCxReset = function () { CX = { sz: null, pr: null }; PRS = null; draw(); };
-  var KEYS = { hoodie: [['صدر', 'chest'], ['طول', 'length'], ['كتف', 'shoulder'], ['كم', 'sleeve']], pants: [['وسط', 'waist'], ['ورك', 'hip'], ['فخذ', 'thigh'], ['طول الرجل', 'inseam']] };
+  var KEYS = { hoodie: [['عرض الصدر', 'chest'], ['طول الصدر', 'length'], ['عرض الكم', 'sleeveW'], ['طول الكم', 'sleeveL']], pants: [['عرض الكمر', 'waist'], ['عرض السمانة', 'calf'], ['طول الرجل', 'inseam']] };
   KEYS.jacket = KEYS.hoodie;
   function zname(code) { var n = code; SPD.pz.forEach(function (z) { if (z.code === code) n = z.name; }); return n; }
   window.cxText = function (cx) {
@@ -2332,7 +2377,8 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     var anchor = $$('msizes') && $$('msizes').parentNode; if (!anchor) return null;
     h = document.createElement('div'); h.id = 'hzsp'; anchor.parentNode.insertBefore(h, anchor.nextSibling); return h;
   }
-  function fsz() { return N(S()['سعر_المقاس_الخاص']); }
+  function fsz() { var v = window.__hzSSP && window.__hzSSP[typ()]; return v != null ? N(v) : N(S()['سعر_المقاس_الخاص']); }
+  window.__hzSizeFee = function () { return fsz(); };
   function draw() {
     var h = host(); if (!h) return;
     var a = curProduct && window.__hzElig && window.__hzElig(curProduct, 'sz'), b = curProduct && window.__hzElig && window.__hzElig(curProduct, 'pr');
@@ -2363,50 +2409,66 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   function ovl(id) { var o = $$(id); if (!o) { o = document.createElement('div'); o.id = id; o.className = 'hzo'; o.innerHTML = '<div class="hzs"></div>'; document.body.appendChild(o); o.addEventListener('click', function (e) { if (e.target === o) o.classList.remove('open'); }); } return o; }
   function tableRows() {
     var pants = typ() === 'pants';
-    var rows = pants ? SPD.psz.map(function (r) { return { s: r.s, a: r.w, b: r.h, c: r.t, d: r.i, mw: r.mw, mh: r.mh }; }) : SZT.map(function (r) { return { s: r.s, a: r.w, b: r.l, mw: r.mw, mh: r.mh }; });
+    var rows = pants ? SPD.psz.map(function (r) { return { s: r.s, i: r.i, w: r.w, c: r.c, mw: r.mw, mh: r.mh }; }) : SZT.map(function (r) { return { s: r.s, w: r.w, l: r.l, mw: r.mw, mh: r.mh }; });
     return rows.sort(function (x, y) { return sizeRank(x.s) - sizeRank(y.s); });
   }
   function prodSizes() { var m = {}; curProduct.colors.forEach(function (c) { c.sizes.forEach(function (s) { m[s.size] = 1; }); }); return m; }
-  function sizePanel() {
-    var pants = typ() === 'pants', rows = tableRows(), ks = KEYS[typ()] || KEYS.hoodie, cur = CX.sz || {}, o = ovl('hzszp'), box = o.querySelector('.hzs');
-    box.innerHTML = '<h3><span>مقاس خاص</span><button class="hzx" type="button">×</button></h3><div class="hzm" style="margin-bottom:8px">اعرف مقاسك من جدول المقاسات، أو اكتب سنك ووزنك وطولك وهنقترحلك المقاس، وبعدها عدّل القياسات زي ما تحب.</div>' +
-      '<button class="hzlk" type="button" id="hzszt">افتح جدول المقاسات</button>' +
-      '<div class="hzszf"><label>السن<input id="hzsza" inputmode="numeric" value="' + E(cur.age || '') + '"></label><label>الوزن (كجم)<input id="hzszw" inputmode="numeric" value="' + E(cur.weight || '') + '"></label><label style="grid-column:1/-1">الطول (سم)<input id="hzszh" inputmode="numeric" value="' + E(cur.height || '') + '"></label></div>' +
-      '<div class="hzrec" id="hzszr"></div>' +
-      '<div class="hzszf"><label style="grid-column:1/-1">المقاس الأساسي<select id="hzszb"><option value="">اختار</option>' + rows.map(function (r) { return '<option' + (cur.base === r.s ? ' selected' : '') + '>' + E(r.s) + '</option>'; }).join('') + '</select></label>' +
-      ks.map(function (k) { return '<label>' + k[0] + ' (سم)<input data-f="' + k[1] + '" inputmode="decimal" value="' + E(cur[k[1]] || '') + '"></label>'; }).join('') + '</div>' +
-      '<textarea id="hzszn" rows="2" placeholder="ملاحظات على المقاس (اختياري)" style="margin-top:8px">' + E(cur.note || '') + '</textarea>' +
-      '<div class="hzb" id="hzszm"></div><div class="hzm">سعر المقاس الخاص: ' + (fsz() ? '+' + fsz() + ' ' + CURRENCY + ' للقطعة' : 'من غير رسوم إضافية') + '</div><button class="btn add" type="button" id="hzszs" style="margin-top:8px">تأكيد المقاس الخاص</button>';
-    o.classList.add('open'); box.querySelector('.hzx').onclick = function () { o.classList.remove('open'); };
-    $$('hzszt').onclick = function () { if (window.__hzOpenSizes) window.__hzOpenSizes(); };
-    function idxOf(k, v) { for (var i = 0; i < rows.length; i++) if (v <= N(rows[i][k])) return i; return rows.length; }
-    function sug() {
-      var w = N($$('hzszw').value), h = N($$('hzszh').value), r = $$('hzszr'); r.style.display = 'none'; r.className = 'hzrec';
-      var fl = rows.filter(function (x) { return N(x.mw) > 0 && N(x.mh) > 0; });
-      if (!w || !h || !fl.length) return;
-      var mg = N(S()['هامش_المقاس']) || 5, last = fl[fl.length - 1], i = Math.max(idxOf2(fl, 'mw', w), idxOf2(fl, 'mh', h)), beyond = w > N(last.mw) + mg || h > N(last.mh) + mg, rec = fl[Math.min(i, fl.length - 1)], inP = !!prodSizes()[rec.s];
-      var m;
-      if (beyond) { m = 'قياساتك أكبر من آخر مقاس في الجدول (' + last.s + ')<br><b>اطلب مقاس خاص بقياساتك</b>'; r.className = 'hzrec warn'; }
-      else if (!inP) m = '<div class="bg">' + E(rec.s) + '</div>المقاس المناسب ليك مش متاح في المنتج ده<br><b>اطلبه كمقاس خاص</b>';
-      else m = '<div class="bg">' + E(rec.s) + '</div>المقاس ده متاح عادي في المنتج. كمّل لو عايز قياسات مخصوصة.';
-      r.innerHTML = m; r.style.display = 'block';
-      if (!beyond) { $$('hzszb').value = rec.s; fill(rec); }
+  function sizePanel() { sizeUI(true); }
+  function sizeUI(special) {
+    var pants = typ() === 'pants', rows = tableRows(), ks = KEYS[typ()] || KEYS.hoodie, cur = (special && CX.sz) || {}, o = ovl('hzsz'), box = o.querySelector('.hzs'), ps = prodSizes(), base = cur.base || '', pick = '';
+    var th = pants ? ['المقاس', 'طول الرجل', 'عرض الكمر', 'عرض السمانة', 'وزن حتى', 'طول حتى'] : ['المقاس', 'العرض', 'الطول', 'وزن حتى', 'طول حتى'];
+    function cells(r) { return (pants ? [r.s, r.i, r.w, r.c, r.mw, r.mh] : [r.s, r.w, r.l, r.mw, r.mh]).map(function (v) { return '<td>' + E(v == null || v === '' || v === 0 ? '-' : v) + '</td>'; }).join(''); }
+    var h = '<h3><span>' + (special ? 'مقاس خاص' : 'جدول المقاسات') + '</span><button class="hzx" type="button">×</button></h3>';
+    if (special) h += '<h4 class="hzsth">جدول المقاسات</h4>';
+    h += '<div style="overflow-x:auto"><table class="hzt2"><tr>' + th.map(function (x) { return '<th>' + x + '</th>'; }).join('') + '</tr>' + rows.map(function (r) { return '<tr data-s="' + E(r.s) + '" class="' + (!special && !ps[r.s] ? 'dim' : '') + '">' + cells(r) + '</tr>'; }).join('') + '</table></div>' +
+      '<p class="hzm">القياسات بالسنتيمتر. الموديلات أوفرسايز: لو بتفضّل لبس ضيق اطلب مقاس أصغر.</p>';
+    if (special) h += '<h4 class="hzsth" style="margin-top:12px">اختر مقاسك</h4><div class="hzm" style="margin:0 0 6px">لو متعرفهوش اعرفه من تحت</div><div class="hzch" id="hzszc">' + rows.map(function (r) { return '<button type="button" data-b="' + E(r.s) + '" class="' + (base === r.s ? 'sel' : '') + '">' + E(r.s) + '</button>'; }).join('') + '</div>';
+    if (rows.some(function (r) { return N(r.mw) > 0 && N(r.mh) > 0; })) h += '<h4 class="hzsth" style="margin-top:12px">اعرف مقاسك</h4><div class="hzszf"><label>السن<input id="hzsza" inputmode="numeric" value="' + E(cur.age || '') + '"></label><label>الوزن (كجم)<input id="hzszw" inputmode="numeric" value="' + E(cur.weight || '') + '"></label><label style="grid-column:1/-1">الطول (سم)<input id="hzszh" inputmode="numeric" value="' + E(cur.height || '') + '"></label></div><div class="hzrec" id="hzszr"></div>';
+    if (special) h += '<details class="hzadv"' + (ks.some(function (k) { return cur[k[1]]; }) || cur.note ? ' open' : '') + '><summary>إعدادات متقدمة</summary><div class="hzszf">' + ks.map(function (k) { return '<label>' + k[0] + ' (سم)<input data-f="' + k[1] + '" inputmode="decimal" value="' + E(cur[k[1]] || '') + '"></label>'; }).join('') + '</div><textarea id="hzszn" rows="2" placeholder="ملاحظات على المقاس (اختياري)" style="margin-top:8px">' + E(cur.note || '') + '</textarea></details>' +
+      '<div class="hzb" id="hzszm"></div><div class="hzm">سعر المقاس الخاص: ' + (window.__hzSizeFee ? (window.__hzSizeFee() ? '+' + window.__hzSizeFee() + ' ' + CURRENCY + ' للقطعة' : 'من غير رسوم إضافية') : '') + '</div><button class="btn add" type="button" id="hzszs" style="margin-top:8px">تأكيد المقاس الخاص</button>';
+    else h += '<button class="btn add" type="button" id="hzszu" style="margin-top:10px;display:none">اختار المقاس ده</button>';
+    box.innerHTML = h; o.classList.add('open');
+    box.querySelector('.hzx').onclick = function () { o.classList.remove('open'); };
+    function setBase(s) { base = s; Array.prototype.forEach.call(box.querySelectorAll('#hzszc button'), function (b) { b.classList.toggle('sel', b.getAttribute('data-b') === s); }); Array.prototype.forEach.call(box.querySelectorAll('tr[data-s]'), function (r) { r.classList.toggle('hit', r.getAttribute('data-s') === s); }); }
+    setBase(base);
+    if (special) {
+      Array.prototype.forEach.call(box.querySelectorAll('#hzszc button'), function (b) { b.onclick = function () { setBase(b.getAttribute('data-b')); }; });
+      Array.prototype.forEach.call(box.querySelectorAll('tr[data-s]'), function (r) { r.onclick = function () { setBase(r.getAttribute('data-s')); }; });
     }
     function idxOf2(fl, k, v) { for (var i = 0; i < fl.length; i++) if (v <= N(fl[i][k])) return i; return fl.length - 1; }
-    function fill(rec) {
-      var map = pants ? { waist: rec.a, hip: rec.b, thigh: rec.c, inseam: rec.d } : { chest: rec.a, length: rec.b };
+    function sug() {
+      var r = $$('hzszr'); if (!r) return; r.style.display = 'none'; r.className = 'hzrec'; pick = ''; if ($$('hzszu')) $$('hzszu').style.display = 'none';
+      var w = N($$('hzszw').value), hh = N($$('hzszh').value), ag = N($$('hzsza').value);
+      var fl = rows.filter(function (x) { return N(x.mw) > 0 && N(x.mh) > 0 && (special || ps[x.s]); });
+      if (!w || !hh || !fl.length) return;
+      var mg = N(S()['هامش_المقاس']) || 5, ma = N(S()['سن_أدنى_للمقاسات']) || 14, last = fl[fl.length - 1], i = Math.max(idxOf2(fl, 'mw', w), idxOf2(fl, 'mh', hh)), beyond = w > N(last.mw) + mg || hh > N(last.mh) + mg, rec = fl[Math.min(i, fl.length - 1)], m;
+      if (beyond) { m = 'قياساتك أكبر من آخر مقاس (' + E(last.s) + ')<br><b>' + (special ? 'اكتب قياساتك في الإعدادات المتقدمة' : 'كلمنا على واتساب') + '</b>'; r.className = 'hzrec warn'; }
+      else { m = '<div class="bg">' + E(rec.s) + '</div>المقاس المناسب ليك' + (i === 0 ? '<br>هيطلع واسع شوية، وده ستايل الأوفرسايز' : '') + (special && !ps[rec.s] ? '<br><b>مش متاح عادي في المنتج، هيتطلب كمقاس خاص</b>' : ''); pick = rec.s; }
+      if (ag && ag < ma) m += '<br><small>المقاسات دي للكبار.</small>';
+      r.innerHTML = m; r.style.display = 'block';
+      if (pick) { if (special) { setBase(pick); fillAdv(rows.filter(function (x) { return x.s === pick; })[0]); } else if ($$('hzszu')) $$('hzszu').style.display = 'block'; }
+    }
+    function fillAdv(rec) {
+      if (!rec) return;
+      var map = pants ? { waist: rec.w, calf: rec.c, inseam: rec.i } : { chest: rec.w, length: rec.l };
       Object.keys(map).forEach(function (k) { var e = box.querySelector('[data-f=' + k + ']'); if (e && !e.value && map[k]) e.value = map[k]; });
     }
-    ['hzsza', 'hzszw', 'hzszh'].forEach(function (i) { $$(i).addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); sug(); }); });
-    $$('hzszb').onchange = function () { var r = rows.filter(function (x) { return x.s === $$('hzszb').value; })[0]; if (r) fill(r); };
+    ['hzsza', 'hzszw', 'hzszh'].forEach(function (i) { var e = $$(i); if (e) e.addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); sug(); }); });
     sug();
-    $$('hzszs').onclick = function () {
-      var z = { base: $$('hzszb').value, age: N($$('hzsza').value) || undefined, weight: N($$('hzszw').value) || undefined, height: N($$('hzszh').value) || undefined, note: $$('hzszn').value.trim().slice(0, 120) }, any = !!z.base;
+    if ($$('hzszu')) $$('hzszu').onclick = function () {
+      if (!curColor) { showToast('اختار اللون الأول'); return; }
+      var f = null; curColor.sizes.forEach(function (s) { if (s.size === pick) f = s; });
+      if (!f || !f.inStock) { showToast('المقاس ده نافذ في اللون ده'); return; }
+      curSize = f; renderSizes(); updateInfo(); o.classList.remove('open');
+    };
+    if ($$('hzszs')) $$('hzszs').onclick = function () {
+      var z = { base: base, age: N($$('hzsza') && $$('hzsza').value) || undefined, weight: N($$('hzszw') && $$('hzszw').value) || undefined, height: N($$('hzszh') && $$('hzszh').value) || undefined, note: $$('hzszn').value.trim().slice(0, 120) }, any = !!base;
       Array.prototype.forEach.call(box.querySelectorAll('[data-f]'), function (e) { var v = N(e.value); if (v > 0) { z[e.getAttribute('data-f')] = v; any = true; } });
-      if (!any) { $$('hzszm').textContent = 'اختار المقاس الأساسي أو اكتب قياس واحد على الأقل'; return; }
-      CX.sz = z; baseSize(z.base); o.classList.remove('open'); draw(); updateInfo(); showToast('تم تحديد المقاس الخاص');
+      if (!any) { $$('hzszm').textContent = 'اختار مقاسك من فوق أو اكتب قياس واحد على الأقل'; return; }
+      z.mt = typ(); CX.sz = z; baseSize(z.base); o.classList.remove('open'); draw(); updateInfo(); showToast('تم تحديد المقاس الخاص');
     };
   }
+  window.__hzSizeUI = function () { if (curProduct) sizeUI(false); };
   // المخزون بيتخصم من أقرب مقاس متاح في المنتج لو العميل ماحددش مقاس عادي
   function baseSize(base) {
     if (curSize && curSize.inStock) return;
@@ -2515,6 +2577,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     var reg = mode === 'reg';
     box.innerHTML = head('تتبع طلباتك') + (note ? '<div class="hzb" style="margin-bottom:8px">' + note + '</div>' : '') + '<div class="hztab"><button type="button" id="hzt1" class="' + (reg ? '' : 'on') + '">دخول</button><button type="button" id="hzt2" class="' + (reg ? 'on' : '') + '">حساب جديد</button></div><div class="hzin"><input id="hztp" type="tel" dir="ltr" inputmode="numeric" placeholder="رقم الموبايل" value="' + E(PHONE) + '">' + (reg ? '<input id="hztn" placeholder="الاسم (اختياري)" autocomplete="name">' : '') + '<input id="hztw" type="password" placeholder="الباسورد" autocomplete="' + (reg ? 'new-password' : 'current-password') + '">' + (reg ? '<div class="hzn">لو عندك طلبات قبل كده اكتب رقم فاتورة من طلباتك:</div><div class="hzpre"><span>HZ-</span><input id="hzti" inputmode="numeric" placeholder="1001"></div>' : '') + '<div class="hzb" id="hztm"></div><button class="btn add" type="button" id="hztg">' + (reg ? 'إنشاء حساب' : 'دخول') + '</button>' + (reg ? '' : '<div class="hzfg"><span>نسيت الباسورد؟</span><button class="hzib" type="button" id="hzfw" data-tip="كلمنا على واتساب" aria-label="واتساب">' + SVG.wa + '</button></div><div class="hzin" id="hzfb" style="display:none"><input id="hzfn" placeholder="اكتب اسمك"><button class="btn wa" type="button" id="hzfs">ابعت على واتساب</button></div>') + '</div>';
     bind();
+    box.onkeydown = function (e) { if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT' && $$('hztg')) { e.preventDefault(); $$('hztg').click(); } };
     $$('hzt1').onclick = function () { auth('in'); }; $$('hzt2').onclick = function () { auth('reg'); };
     if ($$('hzti')) $$('hzti').oninput = function () { this.value = this.value.replace(/\D/g, '').slice(0, 8); };
     if ($$('hzfw')) {
@@ -2561,40 +2624,57 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   function profileView() {
     if (!SESS) { auth('in'); return; }
     if (window.__hzLoadGeo) window.__hzLoadGeo();
-    var P = PROFILE || { name: '', age: '', ph2: '', addrs: [] }, A = (P.addrs || []).slice();
+    var P = PROFILE || { name: '', age: '', ph2: '', addrs: [] }, A = (P.addrs || []).slice(), adding = false, base = '';
+    function snap() { return JSON.stringify([P.name || '', String(P.age || ''), P.ph2 || '', A]); }
+    base = snap();
+    function keep() { if ($$('hzpn')) { P.name = $$('hzpn').value.trim(); P.age = $$('hzpa').value; P.ph2 = $$('hzp2').value; } P.addrs = A; }
+    function sync() { keep(); var b = $$('hzps'); if (b) { var d = snap() !== base; b.disabled = !d; b.classList.toggle('dis', !d); } }
+    function persist(msg, cb) {
+      postApi({ type: 'track_profile', sess: SESS, save: 1, profile: { name: P.name, age: P.age, ph2: P.ph2, addrs: A } }, function (r) {
+        if (r && r.ok) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); if (msg) showToast(msg); }
+        cb && cb(r);
+      }, 30000);
+    }
     function draw() {
       var G = window.__hzGeo || {}, gs = Object.keys(G);
+      var list = A.length ? A.map(function (a, i) { return '<div class="hzaddr"><button type="button" class="hzstar' + (i === 0 ? ' on' : '') + '" data-s="' + i + '" aria-label="عنوان أساسي" title="' + (i === 0 ? 'العنوان الأساسي' : 'اجعله العنوان الأساسي') + '">' + (i === 0 ? '★' : '☆') + '</button><span><b>' + E(a.l || 'عنوان') + (i === 0 ? ' <em class="hzdef">أساسي</em>' : '') + '</b><br><small>' + E(a.gov + ' - ' + a.city + ' - ' + a.a) + '</small></span><button type="button" data-d="' + i + '" aria-label="حذف">×</button></div>'; }).join('') : '<div class="hzn">مفيش عناوين محفوظة.</div>';
+      var form = adding ? '<div class="hzin" style="margin-top:8px"><input id="hzal" placeholder="اسم العنوان (البيت / الشغل)"><div class="hzr" style="display:flex;gap:8px"><select id="hzag" style="flex:1"><option value="">اختار المحافظة</option>' + gs.map(function (g) { return '<option>' + E(g) + '</option>'; }).join('') + '</select><select id="hzac" style="flex:1"><option value="">اختار المدينة</option></select></div><textarea id="hzad2" placeholder="العنوان بالتفصيل"></textarea><div style="display:flex;gap:8px"><button type="button" class="btn add" id="hzaa" style="padding:10px;flex:2">إضافة العنوان</button><button type="button" class="hzghost" id="hzac0" style="flex:1">إلغاء</button></div></div>' : (A.length < 6 ? '<button type="button" class="hzghost" id="hzan" style="width:100%;margin-top:8px">+ إضافة عنوان جديد</button>' : '');
       box.innerHTML = head('حسابي') + '<div class="hzin"><div class="hzn">الرقم: <b dir="ltr">' + E(PHONE) + '</b></div><input id="hzpn" placeholder="الاسم الثنائي" value="' + E(P.name) + '"><div class="hzr" style="display:flex;gap:8px"><input id="hzpa" inputmode="numeric" maxlength="2" placeholder="السن" value="' + E(P.age) + '" style="flex:1"><input id="hzp2" type="tel" dir="ltr" placeholder="رقم تاني (اختياري)" value="' + E(P.ph2) + '" style="flex:2"></div>' +
-        '<div class="hzsec"><h5>عناويني</h5>' + (A.length ? A.map(function (a, i) { return '<div class="hzaddr"><span><b>' + E(a.l || 'عنوان') + '</b><br><small>' + E(a.gov + ' - ' + a.city + ' - ' + a.a) + '</small></span><button type="button" data-d="' + i + '" aria-label="حذف">×</button></div>'; }).join('') : '<div class="hzn">مفيش عناوين محفوظة.</div>') +
-        '<div class="hzin" style="margin-top:8px"><input id="hzal" placeholder="اسم العنوان (البيت / الشغل)"><div class="hzr" style="display:flex;gap:8px"><select id="hzag" style="flex:1"><option value="">المحافظة</option>' + gs.map(function (g) { return '<option>' + E(g) + '</option>'; }).join('') + '</select><select id="hzac" style="flex:1"><option value="">المدينة</option></select></div><textarea id="hzad2" placeholder="العنوان بالتفصيل"></textarea><button type="button" class="btn add" id="hzaa" style="padding:10px">إضافة العنوان</button></div></div>' +
-        '<div class="hzb" id="hzpm"></div><button class="btn add" type="button" id="hzps">حفظ بياناتي</button></div>';
-      bind();
-      if (!gs.length && window.__hzLoadGeo) setTimeout(function () { if (box.querySelector('#hzag') && window.__hzGeo) { keep(); draw(); } }, 1200);
-      var sg = $$('hzag'), sc = $$('hzac');
-      sg.onchange = function () { sc.innerHTML = '<option value="">المدينة</option>' + ((G[sg.value] || []).filter(function (x) { return x.ok; }).map(function (x) { return '<option>' + E(x.c) + '</option>'; }).join('')); };
-      $$('hzpa').oninput = function () { this.value = this.value.replace(/\D/g, '').slice(0, 2); };
-      $$('hzp2').oninput = function () { this.value = this.value.replace(/\D/g, ''); };
-      Array.prototype.forEach.call(box.querySelectorAll('[data-d]'), function (b) { b.onclick = function () { keep(); A.splice(+b.getAttribute('data-d'), 1); draw(); }; });
-      $$('hzaa').onclick = function () {
-        var g = sg.value, c = sc.value, a = $$('hzad2').value.trim();
-        if (!g || !c || a.length < 6) { $$('hzpm').textContent = 'اختار المحافظة والمدينة واكتب العنوان بالتفصيل'; return; }
-        if (A.length >= 6) { $$('hzpm').textContent = 'أقصى عدد عناوين 6'; return; }
-        keep(); A.push({ l: $$('hzal').value.trim() || 'عنوان', gov: g, city: c, a: a }); draw();
-        postApi({ type: 'track_profile', sess: SESS, save: 1, profile: { name: P.name, age: P.age, ph2: P.ph2, addrs: A } }, function (r) { if (r && r.ok) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); okBox('تم إضافة العنوان'); } else { var pm = $$('hzpm'); if (pm) pm.textContent = 'العنوان اتضاف هنا بس، اضغط حفظ بياناتي'; } }, 30000);
-      };
+        '<div class="hzsec"><h5>عناويني</h5>' + list + form + '</div>' +
+        '<div class="hzb" id="hzpm"></div><button class="btn add" type="button" id="hzps" disabled>حفظ بياناتي</button>' +
+        '<button class="hzghost" type="button" id="hzpo2" style="width:100%">تتبع الطلب</button><button class="hzghost hzout" type="button" id="hzpl">تسجيل خروج</button></div>';
+      bind(); sync();
+      if (adding && !gs.length && window.__hzLoadGeo) setTimeout(function () { if (adding && box.querySelector('#hzag') && window.__hzGeo) { keep(); draw(); } }, 1200);
+      $$('hzpa').oninput = function () { this.value = this.value.replace(/\D/g, '').slice(0, 2); sync(); };
+      $$('hzp2').oninput = function () { this.value = this.value.replace(/\D/g, ''); sync(); };
+      $$('hzpn').oninput = sync;
+      $$('hzpo2').onclick = function () { ordersView(); };
+      $$('hzpl').onclick = function () { cfm('متأكد إنك عايز تسجّل خروج من حسابك؟', 'تسجيل خروج', logout); };
+      Array.prototype.forEach.call(box.querySelectorAll('[data-d]'), function (b) { b.onclick = function () { keep(); A.splice(+b.getAttribute('data-d'), 1); P.addrs = A; draw(); }; });
+      Array.prototype.forEach.call(box.querySelectorAll('[data-s]'), function (b) { b.onclick = function () { keep(); var i = +b.getAttribute('data-s'); if (i > 0) { var x = A.splice(i, 1)[0]; A.unshift(x); P.addrs = A; draw(); } }; });
+      if ($$('hzan')) $$('hzan').onclick = function () { keep(); adding = true; draw(); };
+      if ($$('hzac0')) $$('hzac0').onclick = function () { keep(); adding = false; draw(); };
+      if ($$('hzag')) {
+        var sg = $$('hzag'), sc = $$('hzac');
+        sg.onchange = function () { sc.innerHTML = '<option value="">اختار المدينة</option>' + ((G[sg.value] || []).filter(function (x) { return x.ok; }).map(function (x) { return '<option>' + E(x.c) + '</option>'; }).join('')); };
+        $$('hzaa').onclick = function () {
+          var g = sg.value, c = sc.value, a = $$('hzad2').value.trim();
+          if (!g || !c || a.length < 6) { $$('hzpm').textContent = 'اختار المحافظة والمدينة واكتب العنوان بالتفصيل'; return; }
+          if (A.length >= 6) { $$('hzpm').textContent = 'أقصى عدد عناوين 6'; return; }
+          keep(); A.push({ l: $$('hzal').value.trim() || 'عنوان', gov: g, city: c, a: a }); adding = false; draw();
+        };
+      }
       $$('hzps').onclick = function () {
         keep(); var m = $$('hzpm'), b = this;
         if (!nameOk(P.name)) { m.textContent = NAME_MSG; return; }
         if (P.ph2 && !/^01\d{9}$/.test(P.ph2)) { m.textContent = 'الرقم التاني غير صحيح'; return; }
         m.textContent = 'استنى لحظة...'; b.disabled = true;
-        postApi({ type: 'track_profile', sess: SESS, save: 1, profile: { name: P.name, age: P.age, ph2: P.ph2, addrs: A } }, function (r) {
-          b.disabled = false;
-          if (r && r.ok) { PROFILE = r.profile; document.dispatchEvent(new CustomEvent('hzprof', { detail: pubProf(PROFILE) })); showToast('اتحفظت بياناتك'); ordersView(); }
-          else m.textContent = r && r.error === 'session' ? 'سجّل دخول تاني' : 'حصل خطأ، جرب تاني';
-        }, 30000);
+        persist('اتحفظت بياناتك', function (r) {
+          if (r && r.ok) ordersView();
+          else { b.disabled = false; m.textContent = r && r.error === 'session' ? 'سجّل دخول تاني' : 'حصل خطأ، جرب تاني'; }
+        });
       };
     }
-    function keep() { if ($$('hzpn')) { P.name = $$('hzpn').value.trim(); P.age = $$('hzpa').value; P.ph2 = $$('hzp2').value; } P.addrs = A; }
     draw();
   }
   window.__hzAuth = function () { return !!SESS; };
@@ -2673,18 +2753,26 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     if (META.share !== false && o.tk) acts += '<button type="button" id="hzsh">' + SVG.share.replace('<svg', '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-left:4px"') + 'شارك تتبع طلبي</button>';
     if (!single && o.canEdit) acts += '<button type="button" id="hzea">تعديل العنوان</button>';
     if (canRet) {
-      acts += '<button type="button" class="pri" id="hzro">اطلب نفس الطلب تاني</button>';
       if (o.ret) acts += '<span class="hzchip">طلب ' + E(o.ret.kind) + ': ' + E(o.ret.st) + '</span>';
-      else if (o.canReturn) acts += '<button type="button" id="hzrt">استرجاع / استبدال</button>';
+      else if (o.canReturn) acts += '<button type="button" class="pri" id="hzrt">استرجاع / استبدال</button>';
       else acts += '<span class="hzchip" style="opacity:.7">انتهت مدة الاسترجاع (' + (o.retDays || META.days || 14) + ' يوم)</span>';
+      acts += '<button type="button" id="hzro">اطلب نفس الطلب تاني</button>';
     }
-    box.innerHTML = head('طلب ' + E(o.inv), { back: back || null }) + '<div class="hzsec"><div style="display:flex;justify-content:space-between;align-items:center"><span class="hzn">' + dt(o.time) + '</span><span class="hzchip">' + E(o.label) + '</span></div>' + bar(o) +
+    var rf = SESS && !single ? function () {
+      showToast('جاري التحديث...');
+      postApi({ type: 'track_orders', sess: SESS }, function (r) {
+        if (!r || !r.ok) { showToast('مشكلة في النت، جرب تاني'); return; }
+        ORDERS = r.orders; OT = Date.now(); lsSet('hz_ords', JSON.stringify({ p: PHONE, o: ORDERS, v: VIP, t: OT, m: META }));
+        var n = ORDERS.filter(function (x) { return x.inv === o.inv; })[0]; if (n) { detail(n, single); showToast('اتحدّث'); }
+      }, 30000);
+    } : null;
+    box.innerHTML = head('طلب ' + E(o.inv), { back: back || null, refresh: rf ? 1 : 0 }) + '<div class="hzsec"><div style="display:flex;justify-content:space-between;align-items:center"><span class="hzn">' + dt(o.time) + '</span><span class="hzchip">' + E(o.label) + '</span></div>' + bar(o) +
       (o.eta && o.step > 0 && o.step < 4 ? '<div class="hzn" style="margin-top:6px">موعد التسليم المتوقع: <b>' + E(o.eta) + '</b></div>' : '') + (o.deliv ? '<div class="hzn">اتسلم يوم: <b>' + dt(o.deliv) + '</b></div>' : '') +
       (o.carrier || o.awb || o.courier ? '<div class="hzn">الشحن: ' + [o.carrier, o.awb ? 'بوليصة ' + E(o.awb) : '', o.courier ? 'المندوب ' + E(o.courier) : ''].filter(String).join(' | ') + '</div>' : '') + '</div>' +
       itemsHtml(o) + '<div class="hzsec"><h5>الحساب</h5>' + priceHtml(o) + '</div>' +
       (o.addr ? '<div class="hzsec"><h5>العنوان</h5><div style="font-size:13px;line-height:1.8">' + E(o.addr.fullName) + '<br>' + E(o.addr.gov + ' - ' + o.addr.city + ' - ' + o.addr.addr) + '<br><span dir="ltr">' + E(o.addr.ph2 ? PHONE + ' - ' + o.addr.ph2 : PHONE) + '</span></div></div>' : '') +
       '<div class="hzacts">' + acts + '</div><div class="hzin" id="hzfm" style="margin-top:10px"></div>' + (single ? '<button class="btn add" type="button" id="hzall" style="margin-top:12px">شوف كل طلباتك</button>' : '');
-    bind({ back: back }); thumbs(o);
+    bind({ back: back, refresh: rf }); thumbs(o);
     if ($$('hzall')) $$('hzall').onclick = function () { if (SESS) ordersView(); else auth(lsGet('hz_reg') ? 'in' : 'reg'); };
     if ($$('hzsh')) $$('hzsh').onclick = function () { share(o); };
     if ($$('hzro')) $$('hzro').onclick = function () { reorder(o); };
@@ -2859,16 +2947,54 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   /* ---------- هيدر: حسابي + تثبيت (شمال) / 3 شرط (يمين) ---------- */
   var hero = document.querySelector('.hero'), hb = $$('hzhb');
   var mb = document.createElement('div'); mb.id = 'hzmb'; mb.innerHTML = '<button class="hzib" id="hzmenu" type="button" aria-label="القائمة">' + IC.menu + '<i class="hzdot" id="hztdot"></i></button>'; hero.appendChild(mb);
-  var standalone = (window.navigator.standalone === true) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches), ios = /iphone|ipad|ipod/i.test(navigator.userAgent), dp = null;
+  var UA = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(UA) || (/Macintosh/i.test(UA) && navigator.maxTouchPoints > 1), android = /android/i.test(UA), dp = null;
+  var standalone = (window.navigator.standalone === true) || (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: minimal-ui)').matches));
+  function getI() { try { return localStorage.getItem('hz_inst') === '1'; } catch (e) { return false; } }
+  function setI() { try { localStorage.setItem('hz_inst', '1'); } catch (e) {} }
+  if (standalone) setI();
+  window.addEventListener('appinstalled', function () { setI(); dp = null; });
   var ib = document.createElement('button'); ib.id = 'hzin'; ib.className = 'hzib'; ib.type = 'button'; ib.setAttribute('data-tip', 'تثبيت التطبيق'); ib.setAttribute('aria-label', 'تثبيت التطبيق'); ib.innerHTML = IC.dl;
-  if (!standalone && hb) hb.appendChild(ib);
-  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); dp = e; });
-  function help() {
-    var o = ovl('hzhelp');
-    o.querySelector('.hzs').innerHTML = '<h3><span>تثبيت التطبيق</span><button class="hzx" type="button">×</button></h3><div class="hzhelp">' + (ios ? '<ol><li>اضغط زرار المشاركة في Safari.</li><li>اختار "Add to Home Screen" (إضافة إلى الشاشة الرئيسية).</li><li>اضغط "Add".</li></ol>' : '<ol><li>افتح قائمة المتصفح (⋮).</li><li>اختار "تثبيت التطبيق" أو "Add to Home screen".</li></ol>') + '</div>';
-    o.classList.add('open'); o.querySelector('.hzx').onclick = function () { o.classList.remove('open'); };
+  if (!standalone && hb) hb.appendChild(ib);              // جوه التطبيق مفيش أيقونة. في المتصفح بتفضل ظاهرة
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); dp = e; try { localStorage.removeItem('hz_inst'); } catch (x) {} });
+  try { if (navigator.getInstalledRelatedApps) navigator.getInstalledRelatedApps().then(function (a) { if (a && a.length) setI(); }).catch(function () {}); } catch (e) {}
+  function browser() {
+    if (/FBAN|FBAV|Instagram|TikTok|musical_ly|Line\/|Snapchat|Twitter|WhatsApp|; wv\)/i.test(UA)) return 'inapp';
+    if (/OPR\/|Opera|OPT\//i.test(UA)) return 'opera'; if (/SamsungBrowser/i.test(UA)) return 'samsung'; if (/EdgA|EdgiOS|Edg\//i.test(UA)) return 'edge';
+    if (/Firefox|FxiOS/i.test(UA)) return 'firefox'; if (/CriOS|Chrome/i.test(UA)) return 'chrome'; if (/Safari/i.test(UA)) return 'safari'; return 'other';
   }
-  ib.onclick = function () { if (dp) { dp.prompt(); dp.userChoice && dp.userChoice.then(function () { dp = null; }); } else help(); };
+  function steps(br) {
+    if (ios) return br === 'inapp' ? ['افتح الرابط في Safari (اضغط ⋯ ثم "Open in Safari" أو انسخ الرابط).', 'اضغط زرار المشاركة ⬆︎.', 'اختار "Add to Home Screen" (إضافة إلى الشاشة الرئيسية) ثم "Add".'] : ['اضغط زرار المشاركة ⬆︎ (تحت في Safari، أو فوق جنب شريط العنوان).', 'اسحب لتحت واختار "Add to Home Screen" (إضافة إلى الشاشة الرئيسية).', 'اضغط "Add" وهتلاقي HoodZilla بين تطبيقاتك.'];
+    if (br === 'inapp') return ['إنت فاتح الموقع جوه تطبيق (انستا/فيسبوك/تيك توك) والتثبيت مش بيشتغل منه.', 'اضغط ⋮ أو ⋯ واختار "فتح في المتصفح" (Open in browser).', 'بعدها اضغط أيقونة التثبيت هنا تاني.'];
+    if (android) {
+      if (br === 'opera') return ['اضغط على ⋮ أو أيقونة القائمة في Opera.', 'اختار "الصفحة الرئيسية / Home screen" أو "إضافة إلى" ثم "الشاشة الرئيسية".', 'اضغط "إضافة" (لو ظهر "تثبيت" اختاره).'];
+      if (br === 'samsung') return ['اضغط ☰ (القائمة) في Samsung Internet.', 'اختار "إضافة الصفحة إلى" ثم "الشاشة الرئيسية".', 'اضغط "إضافة".'];
+      if (br === 'firefox') return ['اضغط ⋮ في Firefox.', 'اختار "تثبيت" (Install) أو "إضافة إلى الشاشة الرئيسية".', 'اضغط "إضافة".'];
+      if (br === 'edge') return ['اضغط ⋯ في Edge.', 'اختار "إضافة إلى الهاتف" (Add to phone).', 'اضغط "تثبيت".'];
+      return ['اضغط ⋮ في المتصفح.', 'اختار "تثبيت التطبيق" (Install app). لو مش موجود اختار "إضافة إلى الشاشة الرئيسية".', 'اضغط "تثبيت" وهيظهر على موبايلك كتطبيق.'];
+    }
+    if (br === 'safari') return ['من قايمة Safari اختار File ثم "Add to Dock".'];
+    if (br === 'firefox') return ['Firefox على الكمبيوتر مبيدعمش تثبيت المواقع كتطبيقات. افتح الموقع من Chrome أو Edge.'];
+    return ['دوّر على أيقونة التثبيت ⊕ في شريط العنوان (يمين).', 'أو افتح قايمة المتصفح (⋮) واختار "تثبيت HoodZilla Store".', 'اضغط "تثبيت".'];
+  }
+  function help(installed) {
+    var br = browser(), o = ovl('hzhelp'), st = steps(br), canOpen = android && br === 'inapp';
+    o.querySelector('.hzs').innerHTML = '<h3><span>' + (installed ? 'التطبيق متثبت عندك' : 'تثبيت التطبيق') + '</span><button class="hzx" type="button">×</button></h3><div class="hzhelp">' +
+      (installed ? '<p style="margin-bottom:8px">HoodZilla متثبت على جهازك. افتحه من الشاشة الرئيسية أو قايمة التطبيقات. وهنحاول نفتحه لك دلوقتي.</p>' : '') +
+      '<ol>' + st.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>' +
+      '<div style="display:flex;gap:8px;margin-top:10px">' + (canOpen ? '<button class="btn add" type="button" id="hzob">افتح في المتصفح</button>' : '') + '<button class="btn add" type="button" id="hzcl">انسخ الرابط</button></div></div>';
+    o.classList.add('open'); o.querySelector('.hzx').onclick = function () { o.classList.remove('open'); };
+    var cl = o.querySelector('#hzcl'); if (cl) cl.onclick = function () { try { navigator.clipboard.writeText(location.href.split('#')[0]); cl.textContent = 'اتنسخ ✓'; } catch (e) { cl.textContent = location.href; } };
+    var ob = o.querySelector('#hzob'); if (ob) ob.onclick = function () { location.href = 'intent://' + location.host + location.pathname + location.search + '#Intent;scheme=https;action=android.intent.action.VIEW;end'; };
+  }
+  ib.onclick = function () {
+    if (dp) { dp.prompt(); dp.userChoice && dp.userChoice.then(function (r) { if (r && r.outcome === 'accepted') setI(); dp = null; }); return; }
+    if (getI()) {                                              // متثبت فعلاً: حاول تفتحه بدل ما تثبّته تاني
+      help(true);
+      try { var w = window.open(location.origin + location.pathname, '_blank'); } catch (e) {}
+      return;
+    }
+    help(false);
+  };
   function ovl(id) { var o = $$(id); if (!o) { o = document.createElement('div'); o.id = id; o.className = 'hzo'; o.innerHTML = '<div class="hzs"></div>'; document.body.appendChild(o); o.addEventListener('click', function (e) { if (e.target === o) o.classList.remove('open'); }); } return o; }
 
   /* ---------- القايمة الجانبية ---------- */
@@ -3063,14 +3189,18 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   function panel() {
     var p = $$('hzpdp'); if (!p) return; var d = cur(), h = '';
     h += '<div class="chips" id="hzpdz">' + zonesFor().map(function (z) { return '<button type="button" data-z="' + E(z.code) + '" class="' + (d && d.zone === z.code ? 'on' : '') + '">' + E(z.name) + '</button>'; }).join('') + '</div>';
-    h += '<div class="strip">' + D.designs.map(function (x, i) { return '<div class="tn' + (i === D.sel ? ' on' : '') + '" data-i="' + i + '"><img alt="" src="' + x.thumb + '"><i data-r="' + i + '">×</i></div>'; }).join('') + (D.designs.length < D.o.maxN ? '<label class="add"><b>+</b>تصميم<input id="hzpdf" type="file" accept="image/png,image/jpeg,image/webp" style="display:none"></label>' : '') + '</div>';
+    h += '<div class="strip">' + D.designs.map(function (x, i) { return '<div class="tn' + (i === D.sel ? ' on' : '') + (x.lock ? ' lk' : '') + '" data-i="' + i + '"><img alt="" src="' + x.thumb + '"><i data-r="' + i + '">×</i><b class="lkm" data-k="' + i + '" title="' + (x.lock ? 'مثبّت - اضغط لفك التثبيت' : 'اضغط لتثبيت التصميم') + '">' + (x.lock ? '🔒' : '🔓') + '</b></div>'; }).join('') + (D.designs.length < D.o.maxN ? '<label class="add"><b>+</b>تصميم<input id="hzpdf" type="file" accept="image/png,image/jpeg,image/webp" style="display:none"></label>' : '') + '</div>';
     h += '<div class="msg" id="hzpde"></div>';
     if (d) {
       var z = zobj(d.zone), mx = z ? Math.min(z.w, z.h / d.asp) : 40;
+      if (d.lock) h += '<div class="tb"><button type="button" id="hzpdk">🔒 التصميم مثبّت — اضغط لفك التثبيت والتعديل</button></div>';
+      else {
       h += '<div class="sl"><span>الحجم</span><input id="hzpdw" type="range" min="2" max="' + Math.max(3, Math.floor(mx * 2) / 2) + '" step="0.5" value="' + Math.min(d.wcm, mx) + '"><em id="hzpdwv">' + d.wcm.toFixed(1) + '×' + d.hcm.toFixed(1) + ' سم</em></div>';
       h += '<div class="sl"><span>تدوير</span><input id="hzpdr" type="range" min="-180" max="180" step="1" value="' + Math.round(d.rot * 180 / Math.PI) + '"><em id="hzpdrv">' + Math.round(d.rot * 180 / Math.PI) + '°</em></div>';
       h += '<div class="tb"><button type="button" id="hzpdq">' + (d.nbKind === 'fast' ? 'تعديل الإزالة السريعة' : 'إزالة الخلفية (سريعة)') + '</button><button type="button" id="hzpda">إزالة الخلفية بالـ AI</button>' + (d.nbKind ? '<button type="button" id="hzpdo">رجوع للأصلي</button>' : '') + '</div>';
       if (d.nbKind === 'fast') h += '<div class="sl"><span>الدرجة</span><input id="hzpdt" type="range" min="8" max="120" step="2" value="' + d.tol + '"><em>' + d.tol + '</em></div>';
+      h += '<div class="tb"><button type="button" id="hzpdk">🔓 تثبيت التصميم في مكانه</button></div>';
+      }
       if (Math.min(d.w0, d.h0) < 800) h += '<div class="warn">الصورة صغيرة (' + d.w0 + '×' + d.h0 + ') وممكن تطلع مش واضحة في الطباعة. الأفضل صورة أكبر.</div>';
       h += '<div class="info">المكان: <b>' + E(zname(d.zone)) + '</b> · المقاس ' + d.wcm.toFixed(1) + '×' + d.hcm.toFixed(1) + ' سم</div>';
     } else h += '<div class="info">ارفع تصميمك (PNG أو JPG أو WebP حتى ' + D.o.maxMB + ' ميجا) وهيظهر على المنتج. تقدر تضيف لحد ' + D.o.maxN + ' تصاميم.</div>';
@@ -3079,6 +3209,8 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     p.innerHTML = h;
     Array.prototype.forEach.call(p.querySelectorAll('[data-z]'), function (b) { b.onclick = function () { setZone(b.getAttribute('data-z')); }; });
     Array.prototype.forEach.call(p.querySelectorAll('.tn'), function (t) { t.onclick = function (e) { if (e.target.getAttribute('data-r') != null) return; D.sel = +t.getAttribute('data-i'); panel(); focusDesign(); }; });
+    Array.prototype.forEach.call(p.querySelectorAll('[data-k]'), function (t) { t.onclick = function (e) { e.stopPropagation(); var x = D.designs[+t.getAttribute('data-k')]; if (x) { x.lock = !x.lock; D.sel = +t.getAttribute('data-k'); panel(); } }; });
+    if ($$('hzpdk')) $$('hzpdk').onclick = function () { var x = cur(); if (x) { x.lock = !x.lock; panel(); } };
     Array.prototype.forEach.call(p.querySelectorAll('[data-r]'), function (t) { t.onclick = function (e) { e.stopPropagation(); removeDesign(+t.getAttribute('data-r')); }; });
     if ($$('hzpdf')) $$('hzpdf').onchange = function () { var f = this.files[0]; this.value = ''; if (f) addFile(f); };
     if ($$('hzpdw')) $$('hzpdw').oninput = function () { var x = cur(); x.wcm = +this.value; x.hcm = x.wcm * x.asp; $$('hzpdwv').textContent = x.wcm.toFixed(1) + '×' + x.hcm.toFixed(1) + ' سم'; refresh(x); infoLine(); };
@@ -3108,14 +3240,14 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
       var asp = cv.height / cv.width, zs = zonesFor(), z0 = zs[0], d = { id: rnd(), file: f, mime: f.type || (/png$/i.test(f.name) ? 'image/png' : /webp$/i.test(f.name) ? 'image/webp' : 'image/jpeg'), w0: im.naturalWidth, h0: im.naturalHeight, work: cv, cv: cv, thumb: t.toDataURL('image/png'), asp: asp, nbKind: '', tol: 40, rot: 0, zone: z0.code, wcm: 10, hcm: 10 * asp, pos: null, nrm: null, mesh: null, ref: '', nbRef: '', dirty: true };
       // أول مكان: لو في مكان مختار قبل كده، أو "صدر" لو متاح
       zs.forEach(function (z) { if (z.code === 'chest') z0 = z; }); d.zone = z0.code; fit(d);
-      D.designs.push(d); D.sel = D.designs.length - 1; msg(''); mkTex(d); place(d, d.zone); panel(); focusDesign();
+      D.designs.forEach(function (x) { x.lock = true; }); D.designs.push(d); D.sel = D.designs.length - 1; msg(''); mkTex(d); place(d, d.zone); panel(); focusDesign();
     };
     im.src = url;
   }
   function fit(d) { var z = zobj(d.zone); if (!z) return; d.wcm = Math.max(2, Math.min(20, z.w, z.h / d.asp)); d.hcm = d.wcm * d.asp; }
   function removeDesign(i) { var d = D.designs[i]; if (d && d.mesh && D.three) { D.three.scene.remove(d.mesh); d.mesh.geometry.dispose(); } if (d && d.el) d.el.remove(); D.designs.splice(i, 1); D.sel = Math.min(D.sel, D.designs.length - 1); panel(); }
   function setZone(code) {
-    var d = cur(); if (!d) { lookAtZone(code); return; }
+    var d = cur(); if (!d || d.lock) { if (d && d.lock) showToast('التصميم مثبّت، فك التثبيت الأول'); lookAtZone(code); return; }
     d.zone = code; d.wcm = Math.min(d.wcm, zobj(code).w, zobj(code).h / d.asp); d.hcm = d.wcm * d.asp; place(d, code); panel(); lookAtZone(code);
   }
 
@@ -3183,7 +3315,7 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
     var el = T.renderer.domElement, drag = null;
     function ndc(e) { var r = el.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
     el.addEventListener('pointerdown', function (e) {
-      T.ray.setFromCamera(ndc(e), T.cam); var ms = D.designs.filter(function (d) { return d.mesh; }).map(function (d) { return d.mesh; }), hit = T.ray.intersectObjects(ms, false)[0];
+      T.ray.setFromCamera(ndc(e), T.cam); var ms = D.designs.filter(function (d) { return d.mesh && !d.lock; }).map(function (d) { return d.mesh; }), hit = T.ray.intersectObjects(ms, false)[0];
       if (hit) { var i = D.designs.findIndex(function (d) { return d.mesh === hit.object; }); if (i > -1) { D.sel = i; drag = { i: i }; T.controls.enabled = false; try { el.setPointerCapture(e.pointerId); } catch (x) {} panel(); e.stopPropagation(); } }
     });
     el.addEventListener('pointermove', function (e) {
@@ -3334,6 +3466,208 @@ if (!ALL.length) { attempts = 0; showSkeleton(); fetchData(); }
   window.__hzDesigner = { open: open, _d: function () { return D; } };
   setTimeout(function () { if ('requestIdleCallback' in window) requestIdleCallback(function () {}); }, 0);
 })();
+
+  /* ===================== v4: الرئيسية (عروض، رسائل، اسأل عن توفره، أيقونات الكروت) ===================== */
+  (function () {
+    var $$ = function (i) { return document.getElementById(i); }, S = function () { return window.__hzSET || {}; };
+    var st = document.createElement('style');
+    st.textContent = '.otile{justify-content:space-between;padding:10px 14px}.omid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:1px}.osub{margin-top:auto}' +
+      '.ostrip .otile[data-g="1"]{border-color:rgba(216,180,114,.42);background:linear-gradient(135deg,rgba(216,180,114,.13),rgba(216,180,114,.03))}' +
+      '.ostrip .otile[data-g="2"]{border-color:rgba(228,192,126,.6);background:linear-gradient(135deg,rgba(228,192,126,.20),rgba(228,192,126,.06))}' +
+      '.ostrip .otile[data-g="3"]{border-color:rgba(243,220,166,.82);background:linear-gradient(135deg,rgba(243,220,166,.28),rgba(243,220,166,.10));box-shadow:0 0 18px rgba(243,220,166,.12)}' +
+      '.prow{flex-wrap:wrap;row-gap:6px;display:flex;align-items:center;justify-content:space-between;gap:8px}.prow .price{flex:1;min-width:0}.dimp{opacity:.55}.dimo{opacity:.55;pointer-events:none}.fc.dimc{opacity:.45}' +
+      '.askb{display:inline-flex;align-items:center;gap:5px;flex:none;padding:5px 10px;border-radius:30px;border:1px solid rgba(216,180,114,.55);background:rgba(216,180,114,.1);color:var(--gold-2);font:700 11px Cairo,sans-serif;cursor:pointer;white-space:nowrap}.askb:hover{background:rgba(216,180,114,.22)}' +
+      '.hzspic{left:auto;right:8px}.opill.link{cursor:pointer;font-family:inherit}' +
+      '#hzav{position:fixed;inset:0;z-index:95}#hzav .bx{position:fixed;width:min(310px,calc(100vw - 16px));background:var(--panel);border:1px solid var(--gold);border-radius:16px;padding:12px;box-shadow:0 18px 50px rgba(0,0,0,.7);color:var(--ink)}' +
+      '#hzav h4{font-size:13px;color:var(--gold-2);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center;gap:8px}#hzav h4 button{background:none;border:0;color:var(--gold-2);font-size:20px;cursor:pointer;line-height:1}' +
+      '#hzav .lb{font-size:11px;color:var(--muted);margin:6px 0 4px}#hzav .ch{display:flex;flex-wrap:wrap;gap:6px}#hzav .ch button{padding:5px 12px;border-radius:30px;border:1px solid rgba(216,180,114,.5);background:transparent;color:var(--gold-2);font:700 12px Cairo,sans-serif;cursor:pointer}' +
+      '#hzav .ch button.sel{background:var(--gold);color:#1a1408}#hzav .ch button.av{opacity:.4}#hzav .nt{font-size:11px;color:var(--muted);margin:10px 0 6px;min-height:16px}#hzav .go{width:100%;padding:10px;border-radius:12px;border:0;background:#25d366;color:#06240f;font:800 13px Cairo,sans-serif;cursor:pointer}#hzav .go.off{opacity:.4;cursor:not-allowed}' +
+      '.askpic{z-index:1}';
+    document.head.appendChild(st);
+    window.__hzHasOut = function (p) { return !p.inStock || p.colors.some(function (c) { return !c.inStock || c.sizes.some(function (z) { return !z.inStock; }); }); };
+    /* رسائل الرئيسية من الشيت */
+    function msgs() {
+      var box = $$('offers'), s = S(); if (!box || !window.__hzSET || s['رسالة_رئيسية_1_نص'] === undefined) return;
+      box.innerHTML = '';
+      for (var i = 1; i <= 3; i++) {
+        var tx = s['رسالة_رئيسية_' + i + '_نص'], on = String(s['رسالة_رئيسية_' + i + '_تفعيل']);
+        if (!tx || on === 'لا') continue;
+        var e = document.createElement(i === 3 ? 'button' : 'span'); e.className = 'opill free' + (i === 3 ? ' link' : ''); e.textContent = tx;
+        if (i === 3) { e.type = 'button'; e.onclick = function () { var d = $$('hzd3'); if (d) d.click(); }; }
+        box.appendChild(e);
+      }
+    }
+    function grad() {
+      var t = document.querySelectorAll('#ostrip .otile:not(.promo)'), n = t.length;
+      Array.prototype.forEach.call(t, function (e, i) { e.setAttribute('data-g', n > 1 ? Math.round(1 + i * 2 / (n - 1)) : 2); });
+    }
+    var _a = window.applyData; window.applyData = function () { var r = _a.apply(this, arguments); try { msgs(); grad(); } catch (e) {} return r; };
+    var _b = window.buildStrip; if (_b) window.buildStrip = function () { var r = _b.apply(this, arguments); try { grad(); } catch (e) {} return r; };
+    try { msgs(); grad(); } catch (e) {}
+    /* تلميح أيقونات الكارت بالضغط المطوّل */
+    var lp = null;
+    document.addEventListener('touchstart', function (e) { var i = e.target.closest && e.target.closest('.hzspic i'); if (!i) return; clearTimeout(lp); lp = setTimeout(function () { showToast(i.getAttribute('title') || ''); }, 450); }, { passive: true });
+    ['touchend', 'touchmove', 'touchcancel'].forEach(function (n) { document.addEventListener(n, function () { clearTimeout(lp); }, { passive: true }); });
+    /* اسأل عن توفره */
+    var curAsk = null;
+    function closeAsk() { var o = $$('hzav'); if (o) o.remove(); if (curAsk && curAsk.pic) curAsk.pic.remove(); curAsk = null; window.removeEventListener('scroll', onSc, true); }
+    function onSc(e) { var o = $$('hzav'); if (o && e.target && o.contains(e.target)) return; closeAsk(); }
+    window.__hzAsk = function (p, card, btn) {
+      closeAsk();
+      var o = document.createElement('div'); o.id = 'hzav'; o.addEventListener('click', function (e) { if (e.target === o) closeAsk(); });
+      var bx = document.createElement('div'); bx.className = 'bx'; o.appendChild(bx);
+      var named = p.colors.some(function (c) { return c.name; }), selC = null, selZ = null; curAsk = { pic: null };
+      function draw() {
+        var h = '<h4><span>' + p.name.replace(/</g, '&lt;') + '</span><button type="button" id="hzakx">×</button></h4>';
+        if (named) { h += '<div class="lb">اللون</div><div class="ch">' + p.colors.map(function (c, i) { return '<button type="button" data-c="' + i + '" class="' + (selC === c ? 'sel' : '') + (c.sizes.every(function (z) { return z.inStock; }) ? ' av' : '') + '">' + c.name.replace(/</g, '&lt;') + '</button>'; }).join('') + '</div>'; }
+        if (selC || !named) { var cc = selC || p.colors[0]; h += '<div class="lb">المقاس</div><div class="ch">' + cc.sizes.map(function (z, i) { return '<button type="button" data-z="' + i + '" class="' + (selZ === z ? 'sel' : '') + (z.inStock ? ' av' : '') + '">' + z.size + '</button>'; }).join('') + '</div>'; }
+        var ready = (!named || selC) && selZ;
+        h += '<div class="nt">' + (ready ? 'هنبعت رسالة على واتساب نسأل عن توفر ' + (selC && selC.name ? selC.name + ' - ' : '') + selZ.size : 'حدد اللون والمقاس الأول') + '</div><button type="button" class="go' + (ready ? '' : ' off') + '" id="hzago">ابعت على واتساب</button>';
+        bx.innerHTML = h;
+        bx.querySelector('#hzakx').onclick = closeAsk;
+        Array.prototype.forEach.call(bx.querySelectorAll('[data-c]'), function (b) { b.onclick = function () {
+          var c = p.colors[+b.getAttribute('data-c')];
+          if (c.sizes.every(function (z) { return z.inStock; })) { showToast('اللون ده متوفر أصلاً، تقدر تطلبه من الموقع'); return; }
+          selC = c; selZ = null; showPic(c); draw(); }; });
+        Array.prototype.forEach.call(bx.querySelectorAll('[data-z]'), function (b) { b.onclick = function () {
+          var z = (selC || p.colors[0]).sizes[+b.getAttribute('data-z')];
+          if (z.inStock) { showToast('المقاس ده متوفر أصلاً، تقدر تطلبه من الموقع'); return; }
+          selZ = z; draw(); }; });
+        var go = bx.querySelector('#hzago'); go.onclick = function () {
+          if (!ready) { showToast('حدد اللون والمقاس الأول'); return; }
+          var cn = (selC && selC.name) || '', msg = 'مرحباً ' + BRAND + '، عايز أسأل عن توفر: ' + p.name + ' (' + dcode(p.code) + ')' + (cn ? ' - اللون: ' + cn : '') + ' - المقاس: ' + selZ.size;
+          try { postApi({ type: 'avail', anon: true, code: p.code, name: p.name, color: cn, size: selZ.size }, function () {}, 15000); } catch (e) {}
+          if (WHATSAPP) window.open('https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msg), '_blank');
+          closeAsk();
+        };
+      }
+      function showPic(c) {
+        if (curAsk.pic) { curAsk.pic.remove(); curAsk.pic = null; }
+        var w = card && card.querySelector('.imgwrap'); if (!w || !c.imageId) return;
+        var im = makeImg(c.imageId, 450, c.name); im.className = 'on askpic'; w.appendChild(im); im.load(); curAsk.pic = im;
+      }
+      document.body.appendChild(o); draw();
+      var r = card.getBoundingClientRect(), W = Math.min(310, innerWidth - 16), H = bx.offsetHeight;
+      bx.style.left = Math.max(8, Math.min(r.left + (r.width - W) / 2, innerWidth - W - 8)) + 'px';
+      bx.style.top = Math.max(8, Math.min(r.bottom - H - 8, innerHeight - H - 8)) + 'px';
+      setTimeout(function () { if (curAsk) window.addEventListener('scroll', onSc, true); }, 500);
+    };
+  })();
+
+  /* ===================== v4: القايمة الجانبية الزجاجية + سوشيال + اسم المنتج + ختام السياسة ===================== */
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.hzdr .pn{background:transparent!important;border-left:0!important;isolation:isolate;box-shadow:none}' +
+      '.hzdr .pn::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(270deg,rgba(28,24,18,.88),rgba(28,24,18,.5) 55%,rgba(28,24,18,.06));-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);-webkit-mask-image:linear-gradient(270deg,#000 50%,transparent);mask-image:linear-gradient(270deg,#000 50%,transparent)}' +
+      '.hzsoc{display:flex;justify-content:center;gap:14px;padding:10px 18px 4px}.hzsoc a{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(216,180,114,.12);border:1px solid rgba(216,180,114,.4);color:var(--gold-2)}.hzsoc a svg{width:21px;height:21px;fill:currentColor}' +
+      '.hzmlbl{display:block;font:700 10px Cairo,sans-serif;color:var(--gold-2);text-align:center;margin-top:1px;line-height:1}#hzmenu{flex-direction:column}' +
+      '.hzthx{text-align:center;color:var(--gold-2);font-weight:700;margin:14px 0 6px;line-height:1.8}.hzpclose{width:100%;margin-top:8px}' +
+      '@media(max-width:1023px){.mtt{flex:1;min-width:0}.mtt h2{position:static!important;transform:none!important;max-width:none!important;text-align:right!important;flex:1}}';
+    document.head.appendChild(st);
+    var mn = document.getElementById('hzmenu'); if (mn && !mn.querySelector('.hzmlbl')) { var l = document.createElement('span'); l.className = 'hzmlbl'; l.textContent = 'القائمة'; mn.appendChild(l); }
+    var P = {
+      wa: ['واتساب', 'M20 3.9A10 10 0 0 0 4.2 16L3 21l5.1-1.3A10 10 0 1 0 20 3.9zM12 19.5a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 19.5zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1l-.7.9c-.1.2-.3.2-.5.1a6.600 6.600 0 0 1-3.300-2.900c-.2-.4.2-.4.7-1.300.1-.2 0-.3 0-.4l-.7-1.600c-.2-.4-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.200 5.200 5.200 0 0 0 1.100 2.800 11.800 11.800 0 0 0 4.600 4c1.700.7 2.400.8 3.200.7a2.700 2.700 0 0 0 1.800-1.300c.2-.5.2-.9.2-1.100s-.2-.2-.4-.3z'],
+      tt: ['تيك توك', 'M16.600 3a5.300 5.300 0 0 0 4.400 4.700v3.300a8.600 8.600 0 0 1-4.400-1.300v6.200a6.200 6.200 0 1 1-6.200-6.200c.3 0 .6 0 .9.100v3.400a2.900 2.900 0 1 0 2 2.700V3h3.300z'],
+      fb: ['فيسبوك', 'M13.500 21v-7.500h2.500l.4-3h-2.900V8.600c0-.9.3-1.500 1.500-1.500h1.500V4.400A20 20 0 0 0 14.400 4c-2.200 0-3.700 1.300-3.700 3.800v2.200H8.200v3h2.500V21h2.800z'],
+      ig: ['انستجرام', 'M7.800 2h8.400A5.800 5.800 0 0 1 22 7.800v8.400a5.800 5.800 0 0 1-5.800 5.800H7.800A5.800 5.800 0 0 1 2 16.200V7.800A5.800 5.800 0 0 1 7.800 2zm-.2 2A3.600 3.600 0 0 0 4 7.600v8.800A3.600 3.600 0 0 0 7.600 20h8.800a3.600 3.600 0 0 0 3.600-3.600V7.600A3.600 3.600 0 0 0 16.400 4H7.600zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm5.300-3.200a1.200 1.200 0 1 1 0 2.400 1.200 1.200 0 0 1 0-2.400z']
+    };
+    function socials() {
+      var pn = document.querySelector('#hzdr .pn'), s = window.__hzSET || {}; if (!pn) return;
+      var old = pn.querySelector('.hzsoc'); if (old) old.remove();
+      var wa = (typeof WHATSAPP !== 'undefined' && WHATSAPP) ? 'https://wa.me/' + WHATSAPP : (s['واتساب_رابط'] || '');
+      var L = [['wa', s['واتساب_رابط'] || wa], ['tt', s['تيك_توك_رابط']], ['fb', s['فيسبوك_رابط']], ['ig', s['انستجرام_رابط']]].filter(function (x) { return x[1] && /^https?:\/\//i.test(String(x[1]).trim()); });
+      if (!L.length) return;
+      var d = document.createElement('div'); d.className = 'hzsoc';
+      L.forEach(function (x) { var a = document.createElement('a'); a.href = String(x[1]).trim(); a.target = '_blank'; a.rel = 'noopener'; a.setAttribute('aria-label', P[x[0]][0]); a.innerHTML = '<svg viewBox="0 0 24 24"><path d="' + P[x[0]][1] + '"/></svg>'; d.appendChild(a); });
+      var ft = pn.querySelector('.ft'); pn.insertBefore(d, ft);
+    }
+    var _a2 = window.applyData; window.applyData = function () { var r = _a2.apply(this, arguments); try { socials(); } catch (e) {} return r; };
+    try { socials(); } catch (e) {}
+  })();
+  /* ===================== v4: هيدر المودالات + الحساب ===================== */
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.hzs{padding-top:0!important}.hzs>:first-child:not(.hzhd){margin-top:18px}.hzhd{margin:0 -18px 12px!important;border-radius:18px 18px 0 0}' +
+      '.hzstar{background:none;border:0;color:var(--gold);font-size:21px;line-height:1;cursor:pointer;padding:0 4px}.hzstar.on{color:var(--gold-2)}.hzdef{font-style:normal;font-size:10px;background:rgba(216,180,114,.2);border-radius:10px;padding:1px 7px;margin-inline-start:4px;color:var(--gold-2)}' +
+      '.hzghost{border:1px solid var(--gold);background:transparent;color:var(--gold-2);border-radius:30px;padding:10px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer}.hzout{width:100%;border-color:rgba(229,107,88,.6);color:var(--red)}#hzps.dis,#hzps:disabled{opacity:.4;cursor:not-allowed}';
+    document.head.appendChild(st);
+  })();
+  (function () { try { if (/[?&]go=track/.test(location.search)) setTimeout(function () { if (window.__hzTrack) window.__hzTrack(); }, 900); } catch (e) {} })();
+
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '#cnudge{position:sticky!important;top:0;z-index:40!important;background:#2b251c!important;opacity:1!important;border-bottom:1px solid rgba(216,180,114,.3);box-shadow:0 8px 10px -6px #2b251c,0 -14px 0 0 #2b251c}';
+    document.head.appendChild(st);
+  })();
+
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.hzsth{color:var(--gold-2);font-size:14px;margin:4px 0 6px}#hzsz tr.hit td{background:rgba(216,180,114,.22);font-weight:800}#hzsz tr[data-s]{cursor:default}.hzch{display:flex;flex-wrap:wrap;gap:6px}.hzch button{padding:6px 14px;border-radius:30px;border:1px solid rgba(216,180,114,.5);background:transparent;color:var(--gold-2);font:700 13px Cairo,sans-serif;cursor:pointer}.hzch button.sel{background:var(--gold);color:#1a1408}' +
+      '.hzadv{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:8px 10px}.hzadv summary{cursor:pointer;color:var(--gold-2);font-weight:700}.hzadv .hzszf{margin-top:8px}#hzsz .hzt2{min-width:100%}#hzsz .hzrec{display:none}#hzsz .hzrec .bg{font-size:34px;font-weight:800;color:var(--gold-2)}' +
+      '#hzsz .hzszf{display:grid;grid-template-columns:1fr 1fr;gap:8px}#hzsz .hzszf label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}#hzsz .hzszf input,#hzsz textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(216,180,114,.28);background:var(--panel);color:var(--ink);font-family:inherit;font-size:15px}';
+    document.head.appendChild(st);
+  })();
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.hzs>h3:first-child{position:sticky;top:0;z-index:20;background:#262017;margin:0 -18px 12px;padding:14px 18px;border-bottom:1px solid var(--line);border-radius:18px 18px 0 0}.hzs>h3:first-child{margin-top:0!important}.hzs>:first-child:is(h3){margin-top:0}';
+    document.head.appendChild(st);
+  })();
+
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '#hzpdp .tn{position:relative}#hzpdp .tn .lkm{position:absolute;bottom:2px;left:2px;font-size:12px;line-height:1;background:rgba(0,0,0,.6);border-radius:8px;padding:2px 3px;cursor:pointer}#hzpdp .tn.lk img{opacity:.75}';
+    document.head.appendChild(st);
+  })();
+
+  /* ===================== v4: ترجمة إنجليزي كاملة للنصوص الثابتة + قلب الاتجاه ===================== */
+  (function () {
+    var D = {
+      'إتمام الطلب (2 من 2)': 'Checkout (2 of 2)', 'السلة (1 من 2)': 'Cart (1 of 2)', 'أو كلمنا على واتساب': 'Or chat with us on WhatsApp', 'إرسال الطلب': 'Send order', 'إزالة الخلفية (سريعة)': 'Remove background (fast)', 'إزالة الخلفية بالـ AI': 'Remove background (AI)',
+      'إضافة العنوان': 'Add address', 'إعدادات متقدمة': 'Advanced settings', 'إغلاق': 'Close', 'إلغاء': 'Cancel', 'ابحث بالاسم أو الكود...': 'Search by name or code...', 'ابعت على واتساب': 'Send on WhatsApp', 'أساسي': 'Default', 'اتحدّث': 'Updated', 'اتحفظ العنوان': 'Address saved', 'اتحفظت بياناتك': 'Details saved', 'اتدفع مقدماً': 'Paid in advance', 'اتسلم': 'Delivered', 'اتسلم يوم:': 'Delivered on:',
+      'احفظ العنوان ده': 'Save this address', 'اختار البديل (التصميم واللون والمقاس) لكل قطعة': 'Pick a replacement (design, colour, size) for each item', 'اختار التصميم البديل': 'Choose replacement design', 'اختار القطع والكمية:': 'Choose items and quantity:', 'اختار اللون الأول': 'Choose a colour first', 'اختار اللون والمقاس الأول': 'Choose colour and size first', 'اختار المحافظة': 'Select governorate', 'اختار المدينة': 'Select city', 'اختار المقاس ده': 'Choose this size', 'اختار باسورد جديد': 'Choose a new password', 'اختار صورة التحويل': 'Choose transfer screenshot', 'اختار عنوان محفوظ': 'Choose a saved address', 'اختار قطعة واحدة على الأقل': 'Choose at least one item', 'اختر اللون والمقاس': 'Choose colour and size', 'اختر مقاسك': 'Choose your size', 'اختيار المقاس': 'Select size',
+      'ارفع الصورة': 'Upload image', 'ارفع صورة التحويل (سكرين شوت)': 'Upload transfer screenshot', 'ارفعه هنا وكمّل طلبك على طول': 'Upload it here and continue your order', 'اسأل عن توفره': 'Ask about availability', 'استبدال': 'Exchange', 'استخدم عنوان تاني': 'Use another address', 'استرجاع': 'Return', 'استرجاع / استبدال': 'Return / Exchange', 'استكمال': 'Continue', 'استنى لحظة': 'Please wait', 'استنى لحظة...': 'Please wait...', 'اسم العنوان (البيت / الشغل)': 'Address name (Home / Work)',
+      'اطلب نفس الطلب تاني': 'Order the same again', 'افتح السلة': 'Open cart', 'افتح في المتصفح': 'Open in browser', 'اكتب اسمك': 'Enter your name', 'اكتب الاسم ثنائي على الأقل (كل كلمة حرفين أو أكتر)': 'Enter at least first and last name', 'اكتب السبب': 'Enter the reason', 'اكتب رقم موبايل صحيح': 'Enter a valid mobile number', 'الإجمالي': 'Total', 'الإجمالي (قبل الشحن)': 'Total (before shipping)', 'الإجمالي:': 'Total:', 'الاسم (اختياري)': 'Name (optional)', 'الاسم الثنائي (الأول والأخير)': 'Full name (first and last)', 'الاسم:': 'Name:', 'الباسورد': 'Password', 'الباسورد الجديد (6 حروف على الأقل)': 'New password (min 6 characters)',
+      'الترتيب': 'Sort', 'التطبيق متثبت عندك': 'App is installed', 'الحالة': 'Status', 'الحجم': 'Size', 'الحساب': 'Summary', 'الدفع:': 'Payment:', 'الدفع: عند الاستلام': 'Payment: cash on delivery', 'الرقم التاني غير صحيح': 'Second number is invalid', 'الرقم:': 'Number:', 'السن': 'Age', 'السن:': 'Age:', 'الشحن': 'Shipping', 'الطول': 'Length', 'الطول (سم)': 'Height (cm)', 'العرض': 'Width', 'العرض (سم)': 'Width (cm)', 'العنوان': 'Address', 'العنوان بالتفصيل': 'Detailed address', 'الكل': 'All', 'الكمية:': 'Quantity:', 'المتبقي عند الاستلام': 'Remaining on delivery', 'المتبقي عند الاستلام:': 'Remaining on delivery:', 'المتوفر': 'In stock', 'المجموع': 'Subtotal', 'المطلوب تحويله دلوقتي': 'Amount to transfer now', 'المقاس المناسب ليك': 'Your suitable size', 'الوزن': 'Weight', 'الوزن (كجم)': 'Weight (kg)',
+      'انستجرام': 'Instagram', 'انسخ الرابط': 'Copy link', 'بحث': 'Search', 'بحث وتصفية': 'Search & filter', 'بعد': 'After', 'بوليصة': 'Waybill', 'تأكيد': 'Confirm', 'تأكيد المقاس الخاص': 'Confirm custom size', 'تتبع الشحنة': 'Track shipment', 'تتبع طلبك': 'Track your order', 'تتبع طلبي': 'Track my order', 'تثبيت': 'Install', 'تحويل مؤكد': 'Transfer confirmed', 'تسجيل خروج': 'Log out', 'تعديل': 'Edit', 'تعديل العنوان': 'Edit address', 'تم إضافة العنوان': 'Address added', 'تم استلام طلبك': 'Order received', 'تم الإرسال': 'Sent', 'تم تحديد المقاس الخاص': 'Custom size set', 'تم تعديل العنوان': 'Address updated', 'تيك توك': 'TikTok', 'ج.م': 'EGP', 'جاري التحديث...': 'Refreshing...', 'جديد': 'New',
+      'حالة طلبك': 'Order status', 'حدد اللون والمقاس الأول': 'Select colour and size first', 'حذف': 'Delete', 'حسابي': 'My account', 'حسابي وعناويني': 'My account & addresses', 'حصل خطأ': 'Something went wrong', 'حصل خطأ، جرب تاني': 'Something went wrong, try again', 'حفظ': 'Save', 'حفظ الطباعة الخاصة': 'Save custom print', 'حفظ العنوان': 'Save address', 'حفظ بياناتي': 'Save my details', 'خصم الكمية': 'Quantity discount', 'دفع كامل بالمحفظة': 'Full payment by wallet', 'دفع كامل بالمحفظة / إنستاباي': 'Full payment by wallet / InstaPay', 'رجوع': 'Back', 'رجوع للأصلي': 'Back to original', 'رقم الفاتورة:': 'Invoice no.:', 'رقم الموبايل': 'Mobile number',
+      'زوّد قطعة وهتوفر': 'Add one more and save', 'سجّل دخول تاني': 'Please log in again', 'سم': 'cm', 'سنة': 'years', 'شحن مجاني لكل المحافظات على قطعتين فأكثر': 'Free shipping to all governorates on 2+ pieces', 'شوف كل طلباتك': 'See all your orders', 'صدر': 'Chest', 'طريقة الدفع': 'Payment method', 'طلب': 'Order', 'طول الرجل': 'Inseam', 'طول الصدر': 'Chest length', 'طول الكم': 'Sleeve length', 'طول حتى': 'Height up to', 'عرض السلة': 'View cart', 'عرض السمانة': 'Calf width', 'عرض الصدر': 'Chest width', 'عرض الكم': 'Sleeve width', 'عرض الكمر': 'Waist width', 'عرض النتائج': 'Show results', 'عند الاستلام': 'Cash on delivery', 'عند الاستلام (بعربون)': 'Cash on delivery (with deposit)', 'عنوان': 'Address', 'غير متاح حالياً': 'Currently unavailable',
+      'فتح في المتصفح': 'Open in browser', 'فيسبوك': 'Facebook', 'قطع': 'pieces', 'قطعة': 'piece', 'كجم': 'kg', 'كلم الدعم': 'Contact support', 'كلمنا على واتساب': 'Chat with us on WhatsApp', 'كمّل الطلب من غير صورة (آخر حل)': 'Continue without image (last resort)', 'كمّل بياناتي': 'Complete my details', 'كمّل تسوق': 'Continue shopping', 'لا': 'No', 'لاحقاً': 'Later', 'لو متعرفهوش اعرفه من تحت': "Don't know it? Find it below", 'مجاني': 'Free', 'مسح': 'Clear', 'مقاس خاص': 'Custom size', 'مقاس خاص:': 'Custom size:', 'مقاسك بالظبط على المنتجات المتاحة': 'Your exact size on available products', 'ملاحظات:': 'Notes:', 'موعد التسليم المتوقع:': 'Expected delivery:', 'نسخ': 'Copy', 'نسيت الباسورد؟': 'Forgot password?', 'نفذ': 'Sold out', 'واتساب': 'WhatsApp', 'وزن حتى': 'Weight up to', 'وصلت لأقصى كمية': 'Max quantity reached', 'يبدأ من': 'Starts from',
+      'آخر القطع': 'Last pieces', 'آخر كمية متاحة': 'Last available quantity', 'أقصى كمية للطلب': 'Max order quantity', 'ابعت رسالة الطلب على واتساب عشان نأكده معاك': 'Send the order message on WhatsApp so we can confirm', 'افتح واتساب لتأكيد الطلب': 'Open WhatsApp to confirm order', 'بإتمام الطلب أنت موافق على': 'By placing the order you agree to', 'بنأكد الكود، استنى لحظة...': 'Checking code...', 'بنجهّز واتساب، استنى لحظة...': 'Preparing WhatsApp...', 'بنرفع الصورة، لحظة...': 'Uploading image...', 'بنسجّل طلبك، استنى لحظة...': 'Placing your order...', 'بنكمّل رفع الصورة، استنى لحظة...': 'Finishing upload...',
+      'تتبع طلباتك': 'Track your orders', 'دخول': 'Log in', 'إنشاء حساب': 'Create account', 'حساب جديد': 'New account', 'طلباتك': 'My orders', 'مفيش طلبات لسه.': 'No orders yet.', 'مفيش عناوين محفوظة.': 'No saved addresses.', 'مفيش منتجات متاحة دلوقتي.': 'No products available right now.', '+ إضافة عنوان جديد': '+ Add new address', 'عناويني': 'My addresses', 'تتبع الطلب': 'Track order', 'اعرف مقاسك': 'Find your size', 'جدول المقاسات': 'Size chart', 'القياسات بالسنتيمتر. الموديلات أوفرسايز: لو بتفضّل لبس ضيق اطلب مقاس أصغر.': 'Measurements in cm. Models are oversized: for a snug fit choose a smaller size.',
+      'مشكلة في النت، جرب تاني': 'Network problem, try again', 'الرقم أو الباسورد غلط': 'Wrong number or password', 'الباسورد 6 حروف على الأقل': 'Password must be at least 6 characters', 'متأكد إنك عايز تسجّل خروج من حسابك؟': 'Are you sure you want to log out?', 'اللون': 'Colour', 'المقاس': 'Size', 'إضافة للسلة': 'Add to cart', 'السلة': 'Cart', 'سياسة الموقع': 'Website policy', 'القائمة': 'Menu', 'تثبيت التطبيق': 'Install app', 'ابعت واتساب': 'Send WhatsApp', 'مقاس خاص ': 'Custom size', 'طباعة خاصة': 'Custom print', 'مقاسات خاصة': 'Custom sizes', 'اطلب مقاسات خاصة': 'Order custom sizes', 'اطلب طباعة خاصة': 'Order custom printing', 'متاح مقاسات وطباعة خاصة بتصميمك': 'Custom sizes and printing with your own design available', 'تصميم': 'Design', 'الاسم': 'Name', 'التصاميم': 'Designs', 'تأكيد الطلب': 'Confirm order', 'خطوة': 'Step', 'ملاحظات للتوصيل (اختياري)': 'Delivery notes (optional)', 'رقم التليفون': 'Phone number', 'رقم تاني (اختياري)': 'Second number (optional)', 'السن': 'Age', 'اللون ده متوفر أصلاً، تقدر تطلبه من الموقع': 'This colour is available, order it from the site', 'المقاس ده متوفر أصلاً، تقدر تطلبه من الموقع': 'This size is available, order it from the site', 'ده متوفر أصلاً': 'Already available', 'حدد اللون والمقاس الأول': 'Select colour and size first', 'اللون': 'Colour', 'الشحن غير متاح لهذه المدينة': 'Shipping unavailable for this city', 'الشحن غير متاح لهذه المحافظة': 'Shipping unavailable for this governorate', 'تحديث': 'Refresh', 'شارك تتبع طلبي': 'Share my tracking', 'إغلاق ': 'Close',
+      'أناقتك تبدأ من': 'Your style starts from', 'هنا': 'here', 'تشكيلة مختارة بعناية من أحدث الموديلات، بجودة عالية وأسعار تناسبك': 'A carefully selected collection of the latest models, high quality, great prices', 'متاح المعاينة قبل الاستلام': 'Inspection available before receiving', 'الترتيب الافتراضي': 'Default order', 'السعر: الأقل أولاً': 'Price: low to high', 'السعر: الأعلى أولاً': 'Price: high to low', 'اشتري قطعتين': 'Buy 2 pieces', 'مع شحن مجاني': 'with free shipping', 'عندك كود خصم؟': 'Have a discount code?', 'معاك كود خصم؟ اكتبه في السلة وخد خصم إضافي': 'Have a code? Enter it in the cart for an extra discount', 'اكتبه في السلة': 'Enter it in the cart', 'تشكيلة مختارة': 'Selected collection', 'متوفر': 'In stock', 'نافذ': 'Sold out', 'مشاركة': 'Share', 'عن المنتج': 'About the product', 'اللون:': 'Colour:', 'تطبيق': 'Apply', 'إتمام الطلب عبر واتساب': 'Complete order via WhatsApp', 'إفراغ السلة': 'Empty cart', 'صمّم وشوف المعاينة 3D': 'Design and see a 3D preview', 'كود الخصم': 'Discount code', 'المقاس:': 'Size:', 'اختار المقاس': 'Choose size', 'لون': 'Colour', 'متاح': 'Available', 'إجمالي': 'Total', 'الشحن:': 'Shipping:', 'السعر': 'Price', 'اللون والمقاس': 'Colour & size', 'بيانات العميل': 'Customer details', 'نسخ الرقم': 'Copy number', 'محفظة': 'Wallet', 'إنستاباي': 'InstaPay', 'حوّل المبلغ على أحد الأرقام فوق': 'Transfer the amount to one of the numbers above', 'خد سكرين شوت لصفحة نجاح التحويل': 'Take a screenshot of the successful transfer page', 'العربون بيتخصم من إجمالي طلبك عند الاستلام.': 'The deposit is deducted from your total on delivery.', 'الدفع عند الاستلام.': 'Cash on delivery.', 'اختر اللون أولاً لعرض المقاسات المتاحة': 'Choose a colour first to see available sizes', 'اختر اللون': 'Choose colour', 'قبل باقي منتجات السلة': 'before other cart items', 'ابعت': 'Send', 'اختر اللون لتظهر صورته': 'Choose a colour to see its image', 'اكتب رقمك وهنبلغك لما يتوفر. رقمك بيستخدم لإبلاغك بالتوفر فقط.': "Enter your number and we'll notify you when it's back. Used only for availability alerts.", 'ابعت رقمك': 'Send your number'
+    };
+    var PAT = [[/^من ([\d,\.]+) (?:ج\.م|EGP)$/, 'From $1 EGP'], [/^اشتري (\d+) قطع$/, 'Buy $1 pieces'], [/^خصم ([\d,\.]+) ج\.م$/, 'Save $1 EGP'], [/^خصم ([\d,\.]+) EGP$/, 'Save $1 EGP'], [/^عرض (\d+) ديزاين$/, 'Show $1 designs'], [/^(\d+) ديزاين$/, '$1 designs'], [/^(\d+) ألوان?$/, '$1 colours'], [/^ألوان (\d+)$/, '$1 colours'], [/^في سلتك (\d+) قطع(?:ة)?$/, '$1 in your cart'], [/(\d+(?:\.\d+)?)\s*ج\.م/g, '$1 EGP'], [/(\d+)\s*قطع(?:ة)?\b/g, '$1 pcs'], [/زوّد قطعة وهتوفر ([\d,\.]+) ج\.م · إجمالي توفيرك ([\d,\.]+) ج\.م/, 'Add one more piece and save $1 EGP · Total savings $2 EGP'], [/^في سلتك (\d+) قطع(?:ة)?$/, '$1 pcs in your cart']];
+    var ST = document.createElement('style');
+    ST.textContent = 'html[lang=en] body{direction:ltr}html[lang=en] .mtt h2{text-align:left!important}html[lang=en] .hzs,html[lang=en] #hzask .bx,html[lang=en] #hzav .bx{direction:ltr;text-align:left}html[lang=en] .hzs>h3:first-child,html[lang=en] .hzhd{flex-direction:row-reverse}';
+    document.head.appendChild(ST);
+    var O = new WeakMap(), busy = false, tm = null;
+    function T(s) { var t0 = s.trim(), k = t0.replace(/\s+/g, ' '); if (!k) return s; if (D[k]) return s.replace(t0, D[k]); var r = s; PAT.forEach(function (p) { r = r.replace(p[0], p[1]); }); if (r === s) { var r2 = k; PAT.forEach(function (p) { r2 = r2.replace(p[0], p[1]); }); if (r2 !== k) return s.replace(t0, r2); } return r; }
+    function en() { return document.documentElement.getAttribute('lang') === 'en'; }
+    function run(root) {
+      if (busy) return; busy = true;
+      var isEn = en(); document.documentElement.setAttribute('dir', isEn ? 'ltr' : 'rtl');
+      try {
+        var w = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT, null), n, a = [];
+        while ((n = w.nextNode())) { if (!/^(script|style|textarea)$/i.test(n.parentNode.nodeName)) a.push(n); }
+        a.forEach(function (t) {
+          if (isEn) { var o = O.has(t) ? O.get(t) : t.nodeValue, v = T(o); if (v !== o) { if (!O.has(t)) O.set(t, o); t.nodeValue = v; } }
+          else if (O.has(t)) { t.nodeValue = O.get(t); O.delete(t); }
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[placeholder],[title],[aria-label],[data-tip]'), function (e) {
+          ['placeholder', 'title', 'aria-label', 'data-tip'].forEach(function (at) {
+            var v = e.getAttribute(at); if (v === null) return; var key = '_o' + at, o = e[key] != null ? e[key] : v;
+            if (isEn) { var x = T(o); if (x !== o) { e[key] = o; e.setAttribute(at, x); } } else if (e[key] != null) { e.setAttribute(at, e[key]); e[key] = null; }
+          });
+        });
+      } catch (x) {}
+      busy = false;
+    }
+    function soon() { clearTimeout(tm); tm = setTimeout(function () { run(document.body); }, 150); }
+    new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+    new MutationObserver(function () { if (!busy && en()) soon(); }).observe(document.body, { childList: true, subtree: true });
+    if (en()) soon();
+  })();
 
 (function () {
   /* ===================== PWA: تسجيل الـ service worker + تلميح الإضافة للشاشة الرئيسية ===================== */

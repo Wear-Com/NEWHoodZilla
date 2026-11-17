@@ -1,6 +1,6 @@
 /* HoodZilla service worker. غيّر رقم VERSION مع كل تحديث للموقع عشان العملاء ياخدوا النسخة الجديدة */
-var VERSION = 'hz-v2';
-var SHELL = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+var VERSION = 'hz-v5';
+var SHELL = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(SHELL).catch(function () {}); }).then(function () { return self.skipWaiting(); }));
 });
