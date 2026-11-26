@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1c1812">
+<title>HoodZilla Store</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HoodZilla">
+<meta property="og:title" content="HoodZilla - أناقتك تبدأ من هنا">
+<meta property="og:description" content="تشكيلة مختارة بعناية من أحدث الموديلات • شحن مجاني لكل المحافظات على قطعتين فأكثر">
+<meta property="og:image" content="https://wear-com.github.io/HoodZilla/Assets/hoodzilla-og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+<link
+href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap"
+rel="stylesheet">
+<!-- CSS (الترتيب مهم: نفس ترتيب الأصل) -->
+<link rel="stylesheet" href="css/01-base-variables-reset.css">
+<link rel="stylesheet" href="css/02-background-aurora.css">
+<link rel="stylesheet" href="css/03-hero.css">
+<link rel="stylesheet" href="css/04-toolbar.css">
+<link rel="stylesheet" href="css/05-offers-strip.css">
+<link rel="stylesheet" href="css/06-wide-banner.css">
+<link rel="stylesheet" href="css/07-product-cards.css">
+<link rel="stylesheet" href="css/08-product-modal.css">
+<link rel="stylesheet" href="css/09-floating-buttons.css">
+<link rel="stylesheet" href="css/10-toast.css">
+<link rel="stylesheet" href="css/11-cart-drawer.css">
+<link rel="stylesheet" href="css/12-search-and-filter-panel.css">
+<link rel="stylesheet" href="css/13-v2-patches.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="Assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="Assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="Assets/favicon-16.png">
+<link rel="shortcut icon" href="Assets/favicon.ico">
+<meta name="theme-color" content="#1c1812">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HoodZilla Store">
+<link rel="apple-touch-icon" href="Assets/apple-touch-icon.png">
+<script src="js/01-early-install-capture.js"></script>
+</head>
+<body>
+<div id="hzboot" aria-hidden="true"><img src="Assets/logo_hoodzilla.png" alt="" onerror="var n=(+this.getAttribute('data-n')||0),x=['jpg','jpeg','webp'];this.setAttribute('data-n',n+1);if(x[n])this.src='Assets/logo_hoodzilla.'+x[n];else this.style.display='none'"><b>HoodZilla Store</b></div>
+<script src="js/02-boot-splash.js"></script>
+<header class="hero">
+<div class="brand" id="brand"></div>
+<h1>&#x623;&#x646;&#x627;&#x642;&#x62A;&#x643; &#x62A;&#x628;&#x62F;&#x623;
+&#x645;&#x646; <span>&#x647;&#x646;&#x627;</span></h1>
+<p>&#x62A;&#x634;&#x643;&#x64A;&#x644;&#x629;
+&#x645;&#x62E;&#x62A;&#x627;&#x631;&#x629;
+&#x628;&#x639;&#x646;&#x627;&#x64A;&#x629; &#x645;&#x646;
+&#x623;&#x62D;&#x62F;&#x62B;
+&#x627;&#x644;&#x645;&#x648;&#x62F;&#x64A;&#x644;&#x627;&#x62A;&#x60C;
+&#x628;&#x62C;&#x648;&#x62F;&#x629; &#x639;&#x627;&#x644;&#x64A;&#x629;
+&#x648;&#x623;&#x633;&#x639;&#x627;&#x631;
+&#x62A;&#x646;&#x627;&#x633;&#x628;&#x643;</p>
+<div class="offers" id="offers"></div>
+<div class="line"></div>
+<div class="hero-edge"></div>
+</header>
+<div class="toolbar">
+<button class="fbtn" id="fbtn" type="button" aria-label="Search" data-tip="Search">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+<i id="fdot"></i>
+</button>
+</div>
+<div id="fpanel">
+<div class="fsheet">
+<div class="fhead"><span>بحث وتصفية</span><button class="fx" id="fx" type="button" aria-label="إغلاق">&times;</button></div>
+<div class="fbody">
+<div class="fl">بحث</div>
+<input id="search" type="search" placeholder="ابحث بالاسم أو الكود...">
+<div class="fl">الحالة</div>
+<div class="chips">
+<button class="chip active" data-f="all">الكل</button>
+<button class="chip" data-f="in">المتوفر</button>
+<button class="chip" data-f="low">آخر القطع</button>
+<button class="chip" data-f="out">نفذ</button>
+</div>
+<div id="fsizesBox"><div class="fl">المقاس</div><div class="chips" id="fsizes"></div></div>
+<div id="fcolorsBox"><div class="fl">اللون</div><div class="chips" id="fcolors"></div></div>
+<div class="fl">الترتيب</div>
+<select id="sort">
+<option value="def">&#x627;&#x644;&#x62A;&#x631;&#x62A;&#x64A;&#x628;
+&#x627;&#x644;&#x627;&#x641;&#x62A;&#x631;&#x627;&#x636;&#x64A;</option>
+<option value="asc">&#x627;&#x644;&#x633;&#x639;&#x631;:
+&#x627;&#x644;&#x623;&#x642;&#x644; &#x623;&#x648;&#x644;&#x627;&#x64B;</option>
+<option value="desc">&#x627;&#x644;&#x633;&#x639;&#x631;:
+&#x627;&#x644;&#x623;&#x639;&#x644;&#x649;
+&#x623;&#x648;&#x644;&#x627;&#x64B;</option>
+</select>
+<div style="height:10px"></div>
+</div>
+<div class="ffoot"><button id="freset" type="button">مسح</button><button id="fgo" type="button">عرض النتائج</button></div>
+</div>
+</div>
+<main class="wrap">
+<div class="ostrip" id="ostrip"></div>
+<section class="banner" id="banner">
+<div class="blabel" id="blabel"></div>
+<div class="bview" id="bview"><div class="btrack" id="btrack"></div></div>
+<div class="bdots" id="bdots"></div>
+</section>
+<div class="count" id="count"></div>
+<div id="msg"></div>
+<div id="grid"></div>
+</main>
+<footer id="foot"></footer>
+<a id="fab" data-tip="WhatsApp" target="_blank" rel="noopener" aria-label="WhatsApp">
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm5.8 14.17c-.25.7-1.45 1.34-2 1.39-.51.05-1 .24-3.37-.7-2.85-1.12-4.65-4.05-4.79-4.24-.14-.19-1.15-1.53-1.15-2.92 0-1.39.73-2.07.99-2.35.26-.28.57-.35.76-.35.19 0 .38 0 .55.01.18.01.42-.07.65.5.25.59.84 2.05.91 2.2.07.15.12.32.02.51-.1.19-.15.31-.29.48-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.29.76 1.25 1.63 2.03 1.12 1 2.06 1.31 2.35 1.46.29.15.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.65-.14.26.1 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.69-.18 1.39z"/></svg>
+</a>
+<button id="cartfab" data-tip="Cart" type="button" aria-label="cart">
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 13H5L6 7z"/><path
+d="M9 7V6a3 3 0 0 1 6 0v1"/></svg>
+<span id="cbadge">0</span>
+</button>
+<div id="toast"></div>
+<!-- Product modal -->
+<div id="modal">
+<div class="box" id="box">
+<div class="mtop"><div class="mtt"><span class="cardcode" id="mcode"></span><h2 id="mname"></h2></div><button class="sharebtn" id="mshare" type="button"></button><button id="close" aria-label="close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<div class="pic" id="mpic"></div>
+<div class="det">
+<div id="mdescBlock">
+<div class="lbl" id="mdescLbl"></div>
+<ul class="dlist" id="mdesc"></ul>
+</div>
+<div id="colorBlock">
+<div class="clrow">
+<span class="lbl">&#x627;&#x644;&#x644;&#x648;&#x646;: <b
+id="colorName"></b></span>
+<span class="chint" id="chint"></span>
+</div>
+<div class="opts" id="mcolors"></div>
+</div>
+<div>
+<div class="lbl"
+style="margin-bottom:8px">&#x627;&#x644;&#x645;&#x642;&#x627;&#x633;</div>
+<div class="opts" id="msizes"></div>
+</div>
+<div class="p" id="mprice"></div>
+<div class="moffer" id="moffer"></div>
+<div class="status" id="mstatus"></div>
+<div class="qrow" id="qrow">
+<span class="lbl">&#x627;&#x644;&#x643;&#x645;&#x64A;&#x629;</span>
+<div class="qty big">
+<button id="mqplus" type="button">+</button>
+<span id="mqty">1</span>
+<button id="mqminus" type="button">&minus;</button>
+</div>
+</div>
+<button class="btn add" id="madd" type="button"></button>
+</div>
+</div>
+</div>
+<!-- Cart drawer -->
+<div id="cart">
+<div class="cpanel" id="cpanel">
+<div class="chead">
+<h3 id="ctitle"></h3>
+<button id="cclose" type="button" aria-label="close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<div id="cscroll">
+<div class="cnudge" id="cnudge"></div>
+<div id="clist"></div>
+<div class="promo" id="promobox">
+<div class="prow" id="prow">
+<input id="pinput" type="text" dir="ltr" autocomplete="off" autocapitalize="characters"
+autocorrect="off" spellcheck="false">
+<button id="papply" type="button"></button>
+</div>
+<div class="pmsg" id="pmsg"></div>
+</div>
+<div class="csum" id="csum"></div>
+</div>
+<div class="cfoot" id="cfoot">
+<div class="ctotal"><span id="ctotlbl"></span><b id="ctot"></b></div>
+<a class="btn wa" id="csend" target="_blank" rel="noopener"></a>
+<div class="cstep" id="cclear"></div>
+</div>
+</div>
+</div>
+<!-- JS (الترتيب مهم جداً: نفس ترتيب الأصل) -->
+<script src="js/10-i18n-english-dictionary.js"></script>
+<script src="js/11-shared-helpers-and-error-report.js"></script>
+<script src="js/20-api-client.js"></script>
+<script src="js/21-site-constants.js"></script>
+<script src="js/22-app-state.js"></script>
+<script src="js/23-arabic-ui-texts.js"></script>
+<script src="js/24-core-dom-utils.js"></script>
+<script src="js/25-initial-labels-and-offers-strip.js"></script>
+<script src="js/26-pixels-and-tracking.js"></script>
+<script src="js/30-image-loader.js"></script>
+<script src="js/31-product-data-helpers.js"></script>
+<script src="js/32-product-grid-render.js"></script>
+<script src="js/33-wide-banner.js"></script>
+<script src="js/34-deeplink-history-share.js"></script>
+<script src="js/35-product-modal.js"></script>
+<script src="js/36-promo-codes.js"></script>
+<script src="js/37-cart-state-and-pricing.js"></script>
+<script src="js/38-cart-add-edit-remove.js"></script>
+<script src="js/39-cart-render-open-close-and-send.js"></script>
+<script src="js/40-filters-and-search.js"></script>
+<script src="js/41-data-loading.js"></script>
+<script src="js/50-checkout-and-order-flow.js"></script>
+<script src="js/51-modal-bundle-offers-and-ask-stock.js"></script>
+<script src="js/52-size-guide-and-policies.js"></script>
+<script src="js/53-cart-two-step-flow.js"></script>
+<script src="js/54-custom-size-and-special-print.js"></script>
+<script src="js/55-account-orders-tracking.js"></script>
+<script src="js/56-side-menu-header-support-lang.js"></script>
+<script src="js/57-small-ui-tweaks.js"></script>
+<script src="js/58-print-designer-3d.js"></script>
+<script src="js/59-home-offers-messages-ask.js"></script>
+<script src="js/60-side-menu-glass-and-social.js"></script>
+<script src="js/61-modal-header-account-styles.js"></script>
+<script src="js/62-deeplink-go-track.js"></script>
+<script src="js/63-extra-style-patches.js"></script>
+<script src="js/64-english-translation-and-rtl.js"></script>
+<script src="js/65-pwa-service-worker-install-hint.js"></script>
+<script src="js/66-v5-extras-watermark-scrolllock-restore-viewers.js"></script>
+<script src="js/99-start-app.js"></script>
+<!-- آخر حاجة: ستايل v5 لازم يفضل آخر ستايل في الصفحة -->
+<link rel="stylesheet" href="css/90-v5-final-overrides.css">
+</body>
+</html>

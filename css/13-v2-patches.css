@@ -1,0 +1,15 @@
+.mtop{grid-column:1/-1;position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(30,25,19,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.mtt{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.mtt h2{font-size:16px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;line-height:1.4}
+.mtt .cardcode{flex:none}
+#close{position:static!important;flex:none;width:36px;height:36px;font-size:22px;box-shadow:none}
+.box .det{padding-top:18px}
+.hzqm{font-size:12px;font-weight:800;color:#f0924a}
+#mqplus.dim,.qty button.dim{opacity:.3}
+.imgretry{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(20,17,13,.7);border:1px solid rgba(216,180,114,.45);color:var(--gold-2);border-radius:50%;cursor:pointer;padding:0;z-index:3}
+.imgwrap,.pic{background-image:linear-gradient(100deg,rgba(255,255,255,.02) 20%,rgba(255,255,255,.07) 40%,rgba(255,255,255,.02) 60%);background-size:200% 100%;animation:hzsk 1.4s linear infinite}
+img[data-hzi]:not([data-ok="1"]){visibility:hidden}@keyframes hzsk{from{background-position:200% 0}to{background-position:-200% 0}}
+#fpanel #search{padding:0 18px;text-align:right;letter-spacing:0}
+#search::placeholder{opacity:1;letter-spacing:0}
+#cscroll{gap:10px}
+.csum{gap:4px}
